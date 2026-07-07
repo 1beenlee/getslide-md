@@ -28,7 +28,7 @@ The goal is not "generate a deck once." The goal is a deck that stays editable a
 
 1. **Student developers** (primary) — hackathon final pitches, capstone demos, developer club presentations, GitHub project showcases, side-project pitches.
 2. **Job seekers** — portfolio case-study decks shared as links.
-3. **Students who present reports** — turning written work they authored into a clear slide structure.
+3. **Students who present reports** — turning their own written work into a clearer slide structure while preserving authorship and source responsibility.
 
 If you are comfortable with GitHub, Markdown, and an AI chat tool, this kit is built for you.
 
