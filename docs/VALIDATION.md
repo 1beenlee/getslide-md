@@ -10,7 +10,7 @@ The contract these checks enforce is defined in [HTML_DECK_CONTRACT.md](HTML_DEC
 
 | # | Check | Pass condition |
 |---|---|---|
-| A1 | No unresolved placeholders | No `TODO`, `TBD`, `{{...}}`, `[PLACEHOLDER]`, `XXX`, `FIXME`, or lorem ipsum anywhere in the file. (Template placeholders are allowed only in `templates/`.) |
+| A1 | No unresolved placeholders | No `TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, `XXX`, `FIXME`, or lorem ipsum anywhere in the file. (Template placeholders are allowed only in `templates/`.) |
 | A2 | No private/internal traces | No internal tool names, system prompt fragments, private links, personal emails, company information, or content derived from real user materials. |
 | A3 | No ghostwriting language | Nothing positions the deck or kit as doing someone's assignment or writing their work for them. |
 | A4 | No fake real metrics | Every number is either real and verifiable by the author, or explicitly labeled as example/demo data. No invented users, traction, or benchmark claims. |
@@ -64,7 +64,7 @@ It exits `0` on pass and `1` on any failure, printing a per-check `[PASS]`/`[FAI
 | Every slide has `data-slide-id` | B2 |
 | Every slide has `data-pattern` | B3 |
 | `data-slide-id` values unique | B2 |
-| No unresolved placeholders (`TODO`, `TBD`, `FIXME`, `XXX`, `{{`, `[PLACEHOLDER]`, `lorem`, `Replace with`) | A1 |
+| No unresolved placeholders (`TODO`, `TBD`, `FIXME`, `XXX`, double curly braces, `[PLACEHOLDER]`, `lorem`, `Replace with`) | A1 |
 | No private/internal traces (`.env`, private key, internal source, system prompt, `briefing-deck-maker`, `kick-off`) | A2 |
 | `@media print` present | C2 |
 | Keyboard navigation present | C1 |

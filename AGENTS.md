@@ -49,7 +49,7 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 
 - **Decks follow the contract.** Any HTML deck you create or edit must satisfy `docs/HTML_DECK_CONTRACT.md`: single file, `section.slide` with unique `data-slide-id` and a `data-pattern` from the catalog, TOC/nav, page numbers, keyboard navigation, print CSS, `:root` design tokens.
 - **Edit slides, not the system.** When changing deck content, do not restructure CSS tokens, navigation script, or slide markup conventions unless that is the explicit task.
-- **Templates may contain placeholders; examples may not.** `templates/` uses clearly-safe placeholder content. Anything under `examples/` must be complete, with zero unresolved placeholders (`TODO`, `TBD`, `{{...}}`, `[PLACEHOLDER]`, lorem ipsum).
+- **Templates may contain placeholders; examples may not.** `templates/` uses clearly-safe placeholder content. Anything under `examples/` must be complete, with zero unresolved placeholders (`TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, lorem ipsum).
 - **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update `examples/hackathon-demo/DECK_BRIEF.md` and the prompts that reference the fields.
 - **Record decisions.** Any scope or positioning change goes into `PRODUCT_DECISIONS.md` in the same change.
 

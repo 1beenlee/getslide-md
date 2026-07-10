@@ -73,7 +73,7 @@ The file guides its own editing:
 
 ## 9. No unresolved placeholders in final decks
 
-- Finished decks (everything under `examples/`, and anything delivered to a user) contain **zero** unresolved placeholders: no `TODO`, `TBD`, `{{...}}`, `[PLACEHOLDER]`, `XXX`, or lorem ipsum.
+- Finished decks (everything under `examples/`, and anything delivered to a user) contain **zero** unresolved placeholders: no `TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, `XXX`, or lorem ipsum.
 - Only the reusable template under `templates/` may contain placeholder content, and its placeholders must be clearly safe and self-describing (e.g. "Replace with your project name").
 - If real information is unavailable, the slide is rewritten to not need it — a placeholder is never shipped as content. Missing data belongs in the brief's `missing_information`, not in the deck.
 

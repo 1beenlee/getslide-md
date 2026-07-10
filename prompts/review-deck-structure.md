@@ -43,7 +43,7 @@ REVIEW THESE DIMENSIONS
      their body content, text too small or dense to read from a projector.
 
 7. Validation issues (structural)
-   - Unresolved placeholders (TODO, TBD, {{...}}, [PLACEHOLDER], lorem ipsum,
+   - Unresolved placeholders (TODO, TBD, double curly braces, [PLACEHOLDER], lorem ipsum,
      or leftover "Replace with ..." text).
    - Duplicate or missing data-slide-id / data-pattern attributes.
    - Hardcoded nav entries or page numbers (they must be script-generated).

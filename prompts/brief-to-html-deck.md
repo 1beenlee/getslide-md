@@ -43,7 +43,7 @@ Follow the deck contract:
 - Exactly one h1 (title slide); one h2 on every other slide.
 - Do not hardcode nav entries or page numbers — the template script generates
   them from the slides.
-- Zero unresolved placeholders: no TODO/TBD/{{...}}/[PLACEHOLDER]/lorem ipsum.
+- Zero unresolved placeholders: no TODO/TBD/double curly braces/[PLACEHOLDER]/lorem ipsum.
   Every "Replace with ..." string from the template must be gone.
 
 Keep the slide count reasonable:
