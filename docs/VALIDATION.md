@@ -43,17 +43,33 @@ The contract these checks enforce is defined in [HTML_DECK_CONTRACT.md](HTML_DEC
 | D2 | Basic accessibility | One `h1` (title slide), one `h2` per other slide; text/background contrast is comfortably readable on screen and in print; images (if any) have `alt` text. |
 | D3 | No viewport overflow | At 1280×800 and 1440×900 at default zoom, no slide's content is cut off or forces horizontal scrolling. |
 
-## Future automated checks
+## Automated checks (validator script)
 
-Not yet implemented. Candidates for a zero-dependency validation script, in priority order:
+A zero-dependency Node.js validator, [`tools/validate-deck.mjs`](../tools/validate-deck.mjs), automates the structural subset of the manual checks above. It uses only Node built-in modules — no dependencies, no build step.
 
-1. **Placeholder scan** — regex search for `TODO|TBD|\{\{|\[PLACEHOLDER\]|XXX|FIXME|lorem ipsum` (A1).
-2. **Slide ID uniqueness** — parse `data-slide-id` values, assert no duplicates (B2).
-3. **Pattern presence** — assert every `section.slide` has a non-empty `data-pattern` (B3).
-4. **Internal anchor resolution** — assert every `href="#..."` target exists (B7).
-5. **HTML well-formedness** — tag balance / parseability check (B1, partial).
-6. **Single-file policy** — assert no `http(s)://` in `src`/`href` attributes of `script`, `link`, `img` (C3, partial; external links in visible content are allowed).
-7. **Heading structure** — exactly one `h1`; every other slide has exactly one `h2` (D2, partial).
-8. **Sensitive-string scan** — configurable denylist for internal names, emails, and private URL patterns (A2, partial — human review still required).
+```sh
+# validate the example deck
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
 
-Checks A3, A4, C1, C2, D1, D3, and TOC behavior (B4–B6) remain human judgment or browser-based checks for now.
+# validate the template (auto-detected as template mode: placeholders → warnings)
+node tools/validate-deck.mjs templates/base-onefile-deck.html
+```
+
+It exits `0` on pass and `1` on any failure, printing a per-check `[PASS]`/`[FAIL]`/`[WARN]`/`[INFO]` report. What it checks and the manual item it maps to:
+
+| Validator check | Maps to |
+|---|---|
+| Input file exists | (prerequisite) |
+| `section.slide` present and counted | B (structure) |
+| Every slide has `data-slide-id` | B2 |
+| Every slide has `data-pattern` | B3 |
+| `data-slide-id` values unique | B2 |
+| No unresolved placeholders (`TODO`, `TBD`, `FIXME`, `XXX`, `{{`, `[PLACEHOLDER]`, `lorem`, `Replace with`) | A1 |
+| No private/internal traces (`.env`, private key, internal source, system prompt, `briefing-deck-maker`, `kick-off`) | A2 |
+| `@media print` present | C2 |
+| Keyboard navigation present | C1 |
+| Metrics labeling (informational only, never fails) | A4 |
+
+**Modes.** The validator auto-detects templates (path under `templates/` or basename `base-onefile-deck.html`) and downgrades placeholder findings to warnings, since templates intentionally ship `Replace with ...` placeholders. Force with `--template`, or force example rules with `--strict`.
+
+**Still manual.** The validator is a first pass, not a replacement for the checklist. Checks A3, B1, B4–B7, C2 (one-page-per-slide), C3, D1–D3, and TOC/print behavior still require human judgment or a browser. HTML well-formedness, internal-anchor resolution, single-file policy, and heading structure are candidates for a future version.

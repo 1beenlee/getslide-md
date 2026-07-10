@@ -55,14 +55,21 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 
 ## Validation expectations
 
-Before declaring deck work done, run the **Manual checks** in `docs/VALIDATION.md` against every deck you touched. At minimum verify:
+After editing or creating any deck, **run the validator** on every deck you touched and confirm it passes (exit code `0`):
 
-- no unresolved placeholders (examples only),
-- unique `data-slide-id` values,
+```sh
+node tools/validate-deck.mjs <path-to-deck.html>
+```
+
+The validator (`tools/validate-deck.mjs`, Node built-ins only) covers the automatable checks: slide IDs, `data-pattern`, uniqueness, placeholders, private/internal traces, print CSS, keyboard navigation. It does not replace the checklist.
+
+Then run the remaining **Manual checks** in `docs/VALIDATION.md` — the ones the validator cannot cover:
+
 - TOC/nav entries match the slides,
 - page numbers match slide order,
-- keyboard navigation and print CSS are intact,
-- no private/internal traces and no ghostwriting language anywhere in the diff.
+- print mode renders one slide per page,
+- no viewport overflow, readable font sizes,
+- no ghostwriting language anywhere in the diff.
 
 Report what you checked and the results; do not claim validation you did not perform.
 

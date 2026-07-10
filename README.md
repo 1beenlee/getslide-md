@@ -53,6 +53,9 @@ prompts/
   brief-to-html-deck.md         Prompt: turn a DECK_BRIEF.md into a deck
   edit-existing-html-deck.md    Prompt: safely edit an existing deck
   review-deck-structure.md      Prompt: review a deck before finalizing
+
+tools/
+  validate-deck.mjs             Zero-dependency deck validator (Node built-ins only)
 ```
 
 ## What is intentionally NOT included
@@ -99,6 +102,16 @@ your materials (README, notes, report)
 ```
 
 The brief makes generation predictable: it records what the deck should say, what information is missing, and which assumptions were auto-filled — so nothing gets invented silently. The format is defined in [docs/DECK_BRIEF.schema.md](docs/DECK_BRIEF.schema.md), with a complete example in [examples/hackathon-demo/DECK_BRIEF.md](examples/hackathon-demo/DECK_BRIEF.md).
+
+## Validate a deck
+
+A zero-dependency Node.js script checks a deck's structure before you present or share it — unique slide IDs, required metadata, no leftover placeholders, no accidental private traces, print and keyboard support:
+
+```sh
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+It needs only Node (no install, no dependencies) and exits non-zero on failure. See [docs/VALIDATION.md](docs/VALIDATION.md) for the full checklist and what the script does and does not cover.
 
 ## What getslide.md is not
 
