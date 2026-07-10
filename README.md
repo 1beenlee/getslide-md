@@ -72,6 +72,8 @@ Everything here works with a text editor, a browser, and the AI tool of your cho
 
 ## Quick start: open the example deck
 
+**View it live:** https://1beenlee.github.io/getslide-md/examples/hackathon-demo/
+
 1. Clone or download this repository.
 2. Open [examples/hackathon-demo/index.html](examples/hackathon-demo/index.html) in any modern browser. It works offline — no server needed.
 3. Navigate with `←` / `→` arrow keys, the sidebar table of contents, or scrolling.
