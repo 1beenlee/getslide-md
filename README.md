@@ -1,5 +1,9 @@
 # getslide.md
 
+![getslide.md workflow](docs/assets/readme-hero-en.png)
+
+[한국어](./README-ko.md)
+
 **Turn project materials into AI-editable standalone HTML decks.**
 
 getslide.md is an open-source kit for building presentation decks as **single standalone HTML files** — a slide format that AI tools can read, understand, and keep editing.
