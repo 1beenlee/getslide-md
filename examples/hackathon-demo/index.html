@@ -178,6 +178,8 @@ main {
    PRINT — one slide per page, no chrome, print-safe colors.
    ========================================================== */
 @media print {
+  /* Fixed 16:9 landscape slide page so each slide fills one PDF page exactly. */
+  @page { size: 1600px 900px; margin: 0; }
   :root {
     --bg: #ffffff;
     --surface: #f6f8fa;
@@ -192,8 +194,22 @@ main {
   body { display: block; overflow: visible; }
   #toc { display: none; }
   main { height: auto; overflow: visible; scroll-snap-type: none; }
-  .slide { min-height: auto; break-after: page; page-break-after: always; padding: 24px; }
+  /* Each slide occupies the full page box; content stays vertically centered. */
+  .slide {
+    position: relative;
+    box-sizing: border-box;
+    width: 1600px;
+    height: 900px;
+    min-height: 900px;
+    margin: 0;
+    padding: 48px 80px;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+  }
   .slide:last-child { break-after: auto; page-break-after: auto; }
+  /* Pin the page number to the bottom-right of each printed page. */
+  .slide-num { position: absolute; right: 40px; bottom: 28px; }
   a { color: var(--text); }
 }
 </style>

@@ -166,11 +166,27 @@ main {
    Do not remove: "export to PDF" for this kit = browser print.
    ========================================================== */
 @media print {
+  /* Fixed 16:9 landscape slide page so each slide fills one PDF page exactly. */
+  @page { size: 1600px 900px; margin: 0; }
   body { display: block; overflow: visible; background: #ffffff; color: #111111; }
   #toc { display: none; }
   main { height: auto; overflow: visible; scroll-snap-type: none; }
-  .slide { min-height: auto; break-after: page; page-break-after: always; padding: 24px; }
+  /* Each slide occupies the full page box; content stays vertically centered. */
+  .slide {
+    position: relative;
+    box-sizing: border-box;
+    width: 1600px;
+    height: 900px;
+    min-height: 900px;
+    margin: 0;
+    padding: 48px 80px;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+  }
   .slide:last-child { break-after: auto; page-break-after: auto; }
+  /* Pin the page number to the bottom-right of each printed page. */
+  .slide-num { position: absolute; right: 40px; bottom: 28px; }
   .card { border-color: #bbbbbb; }
   a { color: #111111; }
 }
