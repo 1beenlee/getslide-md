@@ -364,11 +364,12 @@ main {
 </main>
 
 <!-- SCRIPT: builds the TOC and page numbers, handles keyboard navigation.
-     Safe to leave untouched for content edits. -->
+     Canonical behavior: do not replace, simplify, remove, or rewrite it when editing content. -->
 <script>
 (function () {
   var slides = Array.prototype.slice.call(document.querySelectorAll('main .slide'));
   var tocList = document.getElementById('toc-list');
+  var deck = document.querySelector('main');
 
   // Build TOC entries and page numbers from the slides themselves.
   slides.forEach(function (slide, i) {
@@ -391,25 +392,46 @@ main {
   var links = Array.prototype.slice.call(tocList.querySelectorAll('a'));
   var current = 0;
 
-  function setCurrent(i) {
+  function setCurrent(i, syncHash) {
     current = Math.max(0, Math.min(slides.length - 1, i));
     links.forEach(function (link, j) {
       link.classList.toggle('active', j === current);
     });
+    slides.forEach(function (slide, j) {
+      slide.classList.toggle('active', j === current);
+    });
+    if (syncHash !== false && location.hash !== '#' + slides[current].id) {
+      history.replaceState(null, '', '#' + slides[current].id);
+    }
   }
 
-  function go(i) {
-    setCurrent(i);
+  function go(i, syncHash) {
+    setCurrent(i, syncHash);
     slides[current].scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  function goToHash() {
+    var id = decodeURIComponent(location.hash.slice(1));
+    var index = slides.findIndex(function (slide) { return slide.id === id; });
+    if (index >= 0) go(index, false);
+  }
+
+  links.forEach(function (link, i) {
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      go(i);
+    });
+  });
 
   // Highlight the TOC entry of the slide currently in view.
   var observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) setCurrent(slides.indexOf(entry.target));
     });
-  }, { root: document.querySelector('main'), threshold: 0.6 });
+  }, { root: deck, threshold: 0.6 });
   slides.forEach(function (slide) { observer.observe(slide); });
+
+  window.addEventListener('hashchange', goToHash);
 
   // Keyboard navigation — never hijack keys while typing in a field.
   document.addEventListener('keydown', function (event) {
@@ -430,7 +452,8 @@ main {
     }
   });
 
-  setCurrent(0);
+  if (location.hash) goToHash();
+  else setCurrent(0);
 })();
 </script>
 </body>

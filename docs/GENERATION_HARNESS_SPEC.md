@@ -19,7 +19,7 @@ v0.2 is an experimental, provider-neutral workflow for turning one README or Mar
 | 0. Source intake | one Markdown file | copied source.md, benchmark.json, source packet | Preserve source wording and language. |
 | 1. Source to brief | source packet | DECK_BRIEF.md | Separate facts, gaps, and assumptions. |
 | 2. Brief review boundary | draft brief | approved brief | A person approves or corrects the brief before deck generation. |
-| 3. Brief to deck | approved brief and template | index.html | Follow the HTML contract and add no unsupported facts. |
+| 3. Brief to deck | approved brief and template | index.html | Follow the HTML contract, preserve the canonical template navigation script exactly, and add no unsupported facts. |
 | 4. Structural validation | deck | validator output | validate-deck.mjs must exit 0. |
 | 5. Constrained repair | failed deck and validator output | corrected deck | Repair only identified issues; preserve supported content. |
 | 6. Benchmark evaluation | fixture, brief, deck | evaluation.json, evaluation.md | Separate automated evidence from manual review. |
@@ -30,7 +30,7 @@ key_points must be source-supported. Unavailable evidence belongs in missing_inf
 
 ## Validation and repair
 
-Run node tools/validate-deck.mjs index.html. A failure uses prompts/repair-invalid-deck.md with the validator output, approved brief, contract, and base template. Re-run validation and then evaluation. Repair must not broaden the story, redesign valid slides, or silently fill gaps.
+Run node tools/validate-deck.mjs index.html. A failure uses prompts/repair-invalid-deck.md with the validator output, approved brief, contract, and base template. Re-run validation and then evaluation. Repair must not broaden the story, redesign valid slides, or silently fill gaps. Static validation checks for conservative navigation signals but does not prove runtime behavior; browser and print QA remain separate gates.
 
 ## Benchmark flow
 
@@ -55,7 +55,7 @@ F1–F2 block the next stage. F3–F5 require content review. F6–F8 block deli
 
 ## Provider-neutral and manual boundaries
 
-The repository invokes no model API, stores no keys, and depends only on Node built-ins. A person may use any AI chat or coding tool to apply the checked-in prompts. Source interpretation, brief approval, factual accuracy review, visual overflow, browser behavior, and print preview intentionally remain manual or model-reviewed.
+The repository invokes no model API, stores no keys, and depends only on Node built-ins. A person may use any AI chat or coding tool to apply the checked-in prompts. Source interpretation, brief approval, factual accuracy review, visual overflow, browser behavior, and print preview intentionally remain manual or model-reviewed. v0.2.1 hardens regeneration consistency by making the base template's complete navigation behavior an explicit generation invariant; it adds no model API or SaaS layer.
 
 ## Deferred
 

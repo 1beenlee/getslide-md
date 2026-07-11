@@ -165,13 +165,34 @@ add(
   /@media\s+print/.test(raw) ? 'print styles found' : 'no @media print block'
 );
 
-// ---------- check 9: keyboard navigation ----------
-const hasKeydown = /addEventListener\(\s*['"]keydown['"]/.test(raw);
-const hasArrows = /Arrow(Left|Right)/.test(raw);
+// ---------- check 9: navigation contract (static evidence only) ----------
+// These checks deliberately look for behavior signals rather than exact variable
+// names or formatting. They cannot prove browser runtime behavior; use the
+// manual browser checks in docs/VALIDATION.md for that.
+const navigationSignals = [
+  ['keydown handler', /addEventListener\(\s*['"]keydown['"]/, 'missing keydown handler'],
+  ['ArrowRight', /['"]ArrowRight['"]/, 'missing ArrowRight next-slide handling'],
+  ['ArrowLeft', /['"]ArrowLeft['"]/, 'missing ArrowLeft previous-slide handling'],
+  ['PageDown', /['"]PageDown['"]/, 'missing PageDown next-slide handling'],
+  ['PageUp', /['"]PageUp['"]/, 'missing PageUp previous-slide handling'],
+  ['Home', /['"]Home['"]/, 'missing Home first-slide handling'],
+  ['End', /['"]End['"]/, 'missing End last-slide handling'],
+  ['Space', /(?:case|key)\s*(?:===)?\s*['"]\s['"]/, 'missing Space next-slide handling'],
+  ['preventDefault', /preventDefault\(\)/, 'missing preventDefault for handled presentation keys'],
+  ['typing-target guard', /INPUT[\s\S]{0,240}TEXTAREA[\s\S]{0,240}SELECT[\s\S]{0,240}isContentEditable/, 'missing input/textarea/select/editable typing-target guard'],
+  ['active TOC state', /classList\.toggle\(\s*['"]active['"]/, 'missing active TOC state synchronization'],
+  ['URL hash update', /(?:location\.hash\s*=|history\.(?:replaceState|pushState)\s*\()/, 'missing URL hash update behavior'],
+  ['direct hash navigation', /(?=[\s\S]*hashchange)(?=[\s\S]*location\.hash)/, 'missing direct hash navigation behavior'],
+  ['TOC click synchronization', /addEventListener\(\s*['"]click['"]/, 'missing TOC click navigation handling'],
+  ['page numbers', /slide-num[\s\S]{0,1000}\+\s*['"]\s*\/\s*['"]\s*\+\s*[A-Za-z_$][\w$]*\.length/, 'missing generated current / total page numbers'],
+];
+const missingNavigationSignals = navigationSignals.filter(([, pattern]) => !pattern.test(raw));
 add(
-  hasKeydown && hasArrows ? 'PASS' : 'FAIL',
-  'Keyboard navigation present',
-  hasKeydown && hasArrows ? 'keydown + arrow handling found' : 'missing keydown handler or arrow keys'
+  missingNavigationSignals.length === 0 ? 'PASS' : 'FAIL',
+  'Navigation contract complete',
+  missingNavigationSignals.length === 0
+    ? 'static signals found for required keys, TOC, hash, page numbers, scroll prevention, and typing guard; browser QA still required'
+    : missingNavigationSignals.map(([name, , detail]) => `${name}: ${detail}`).join('; ')
 );
 
 // ---------- check 10: metrics labeling (informational only) ----------

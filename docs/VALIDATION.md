@@ -32,6 +32,8 @@ The contract these checks enforce is defined in [HTML_DECK_CONTRACT.md](HTML_DEC
 | # | Check | Pass condition |
 |---|---|---|
 | C1 | Keyboard navigation works | `←`/`→`, `PageUp`/`PageDown`, `Home`/`End` move between slides; keys are not hijacked while typing in form fields. |
+| C1a | Navigation state stays synchronized | The active slide and matching TOC entry update together; the URL hash equals the current `data-slide-id`; the page number remains `current / total`; TOC click and direct hash load update all four. |
+| C1b | Presentation keys do not scroll the browser | `ArrowRight`, `ArrowLeft`, `Space`, `PageDown`, `PageUp`, `Home`, and `End` stay within the first/last slide boundary and do not trigger unexpected document scrolling. |
 | C2 | Print mode exists | Browser print preview shows one slide per page, navigation chrome hidden, readable print colors. |
 | C3 | Works offline as a file | The deck opens from `file://` with no network access and renders fully. |
 
@@ -67,9 +69,9 @@ It exits `0` on pass and `1` on any failure, printing a per-check `[PASS]`/`[FAI
 | No unresolved placeholders (`TODO`, `TBD`, `FIXME`, `XXX`, double curly braces, `[PLACEHOLDER]`, `lorem`, `Replace with`) | A1 |
 | No private/internal traces (`.env`, private key, internal source, system prompt, `briefing-deck-maker`, `kick-off`) | A2 |
 | `@media print` present | C2 |
-| Keyboard navigation present | C1 |
+| Navigation contract complete (static signals for required keys, typing guard, active TOC, hash, TOC click, and page numbers) | C1, C1a, C1b |
 | Metrics labeling (informational only, never fails) | A4 |
 
 **Modes.** The validator auto-detects templates (path under `templates/` or basename `base-onefile-deck.html`) and downgrades placeholder findings to warnings, since templates intentionally ship `Replace with ...` placeholders. Force with `--template`, or force example rules with `--strict`.
 
-**Still manual.** The validator is a first pass, not a replacement for the checklist. Checks A3, B1, B4–B7, C2 (one-page-per-slide), C3, D1–D3, and TOC/print behavior still require human judgment or a browser. HTML well-formedness, internal-anchor resolution, single-file policy, and heading structure are candidates for a future version.
+**Still manual.** The validator is a first pass, not a replacement for the checklist. It checks static evidence only and cannot prove runtime navigation, hash transitions, scrolling behavior, visual active-state synchronization, or print output. Checks A3, B1, B4–B7, C2 (one-page-per-slide), C3, D1–D3, and browser/print behavior still require human judgment or a browser. HTML well-formedness, internal-anchor resolution, single-file policy, and heading structure are candidates for a future version.

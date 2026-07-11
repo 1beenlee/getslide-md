@@ -14,8 +14,14 @@ INPUTS
 
 TASK
 Generate one complete standalone HTML deck from the brief, using the template
-as the base. Keep the template's design token structure, navigation script,
-print CSS, and guidance comments intact.
+as the base. Keep the template's design token structure, canonical navigation
+script, print CSS, and guidance comments intact.
+
+The template navigation script is canonical behavior, not optional scaffolding.
+Do not replace, simplify, remove, or rewrite the template navigation script.
+Do not copy navigation markup per slide. Edit only slide content, slide IDs,
+patterns, and deck-specific visible text unless the user explicitly requests a
+template-level navigation change.
 
 RULES
 
@@ -43,6 +49,10 @@ Follow the deck contract:
 - Exactly one h1 (title slide); one h2 on every other slide.
 - Do not hardcode nav entries or page numbers — the template script generates
   them from the slides.
+- Preserve the script's complete navigation contract: active slide and TOC
+  state, `current / total` page numbers, URL hash synchronization, direct hash
+  loading, TOC clicks, ArrowRight/ArrowLeft, Space, PageDown/PageUp, Home/End,
+  typing-target guard, and prevention of browser scrolling for handled keys.
 - Zero unresolved placeholders: no TODO/TBD/double curly braces/[PLACEHOLDER]/lorem ipsum.
   Every "Replace with ..." string from the template must be gone.
 

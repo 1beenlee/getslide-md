@@ -26,6 +26,7 @@ Last updated: 2026-07-11
 | License | MIT. |
 | Dependencies | None. No build step, no npm packages, no CDN assets. Decks must work offline as static files. |
 | Experimental harness | v0.2 provides a provider-neutral, file-based Markdown-to-brief-to-deck benchmark harness. It uses prompts and Node built-ins only; it is not hosted generation or automated factual verification. |
+| Generated deck navigation | v0.2.1 requires generated decks to preserve the canonical base-template navigation script. Static validation checks conservative behavior signals; runtime browser and print QA remain separate gates. No model API or SaaS layer is added. |
 
 ## Deferred
 
