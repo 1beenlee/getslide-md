@@ -1,0 +1,1 @@
+{"id":"09-ko-club-chatbot-missing-architecture","language":"ko","expected_confidence":"low","must_include_anywhere":["공지","모임"],"must_appear_in_missing_information":["배포 구조"],"forbidden_claim_fragments":["RAG","LLM 정확도"],"expected_links":[],"manual_review_notes":["문서에 없는 아키텍처를 만들지 않는다."]}

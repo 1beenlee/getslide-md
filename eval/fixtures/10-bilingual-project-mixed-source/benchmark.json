@@ -1,0 +1,1 @@
+{"id":"10-bilingual-project-mixed-source","language":"mixed","expected_confidence":"medium","must_include_anywhere":["queue","준비 완료"],"must_appear_in_missing_information":["성능 테스트"],"forbidden_claim_fragments":["줄이 40% 감소","real festival deployment"],"expected_links":["https://example.com/queuemate"],"manual_review_notes":["혼합 언어의 핵심 용어를 보존한다."]}

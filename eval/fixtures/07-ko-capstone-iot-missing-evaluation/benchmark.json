@@ -1,0 +1,1 @@
+{"id":"07-ko-capstone-iot-missing-evaluation","language":"ko","expected_confidence":"medium","must_include_anywhere":["토양 수분","대시보드"],"must_appear_in_missing_information":["센서 정확도"],"forbidden_claim_fragments":["정확도 98%","농업 현장 검증"],"expected_links":[],"manual_review_notes":["평가 결과를 만들지 않는다."]}

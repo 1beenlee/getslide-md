@@ -1,0 +1,1 @@
+{"id":"06-ko-complete-campus-hackathon","language":"ko","expected_confidence":"high","must_include_anywhere":["좌석","PWA"],"must_appear_in_missing_information":[],"forbidden_claim_fragments":["만 명","정확도 99%"],"expected_links":["https://example.com/jaribeoum"],"manual_review_notes":["한국어를 보존하고 사용자 수를 만들지 않는다."]}

@@ -1,0 +1,1 @@
+{"id":"08-ko-side-project-dashboard-no-users","language":"ko","expected_confidence":"medium","must_include_anywhere":["CSV","월별"],"must_appear_in_missing_information":["사용자 수"],"forbidden_claim_fragments":["사용자 1,000명","매출"],"expected_links":[],"manual_review_notes":["개인 프로젝트를 SaaS로 포장하지 않는다."]}

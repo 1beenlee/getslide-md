@@ -1,0 +1,1 @@
+{"id":"04-en-team-saas-missing-roles","language":"en","expected_confidence":"medium","must_include_anywhere":["reserve shared equipment","handoff notes"],"must_appear_in_missing_information":["individual roles"],"forbidden_claim_fragments":["paying customers","1,000 labs"],"expected_links":["https://example.com/labloop"],"manual_review_notes":["Do not assign team roles."]}

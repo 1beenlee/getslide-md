@@ -1,0 +1,1 @@
+{"id":"05-en-open-source-devtool-no-metrics","language":"en","expected_confidence":"medium","must_include_anywhere":["Git hook","Markdown summary"],"must_appear_in_missing_information":["usage metrics"],"forbidden_claim_fragments":["adopted by teams","30% productivity"],"expected_links":["https://example.com/diffday"],"manual_review_notes":["Avoid impact claims."]}

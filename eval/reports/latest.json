@@ -1,0 +1,29 @@
+{
+  "complete_runs": [
+    {
+      "name": "01-en-complete-hackathon-pwa",
+      "automated_pass": true,
+      "validator_pass": true,
+      "manual_review_required": 1,
+      "exit_code": 0
+    },
+    {
+      "name": "02-en-thin-cli-readme",
+      "automated_pass": true,
+      "validator_pass": true,
+      "manual_review_required": 1,
+      "exit_code": 0
+    },
+    {
+      "name": "06-ko-complete-campus-hackathon",
+      "automated_pass": true,
+      "validator_pass": true,
+      "manual_review_required": 1,
+      "exit_code": 0
+    }
+  ],
+  "incomplete_runs": [],
+  "pass_count": 3,
+  "fail_count": 0,
+  "validator_pass_count": 3
+}

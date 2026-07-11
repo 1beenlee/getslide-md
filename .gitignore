@@ -12,6 +12,9 @@ node_modules/
 dist/
 build/
 
+# Local benchmark outputs
+eval/runs/
+
 # Archives
 *.zip
 

@@ -1,0 +1,1 @@
+{"id":"01-en-complete-hackathon-pwa","language":"en","expected_confidence":"high","must_include_anywhere":["offline-first","service worker"],"must_appear_in_missing_information":[],"forbidden_claim_fragments":["10,000 users","95% accuracy"],"expected_links":["https://example.com/repository"],"manual_review_notes":["Do not invent adoption metrics.","Keep the demo flow central."]}

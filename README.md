@@ -125,6 +125,10 @@ It needs only Node (no install, no dependencies) and exits non-zero on failure. 
 - Not a PPTX generator.
 - Not a ghostwriting or assignment-writing service. The kit structures and presents **materials you provide and work you did** — it does not do your work for you, and it should not be used to misrepresent authorship.
 
+## Experimental generation harness
+
+The v0.2 experimental harness provides a repeatable Markdown-to-brief-to-standalone Developer Demo deck-to-validation-to-benchmark workflow. It does not call a model API: use the checked-in prompts with an AI tool of your choice, then run the local tools. See [the harness specification](docs/GENERATION_HARNESS_SPEC.md), [evaluation rubric](docs/EVALUATION_RUBRIC.md), and [benchmark corpus](eval/README.md).
+
 ## License
 
 [MIT](LICENSE)

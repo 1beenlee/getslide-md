@@ -2,7 +2,7 @@
 
 Current decision log for getslide.md. This file records what has been decided, what is deferred, what is explicitly out of scope for now, and what remains open. Update it whenever a decision changes.
 
-Last updated: 2026-07-07
+Last updated: 2026-07-11
 
 ## Decided
 
@@ -25,6 +25,7 @@ Last updated: 2026-07-07
 | Repo language | **English-first** for all public repo content (README, docs, prompts, examples). Community posts in other languages are handled outside this repo. |
 | License | MIT. |
 | Dependencies | None. No build step, no npm packages, no CDN assets. Decks must work offline as static files. |
+| Experimental harness | v0.2 provides a provider-neutral, file-based Markdown-to-brief-to-deck benchmark harness. It uses prompts and Node built-ins only; it is not hosted generation or automated factual verification. |
 
 ## Deferred
 
