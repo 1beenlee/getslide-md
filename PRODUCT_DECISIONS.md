@@ -27,6 +27,7 @@ Last updated: 2026-08-20
 | Repo language | **English-first** for all canonical public repo content. Translated README content may exist but must not become the source of truth. |
 | License | MIT. |
 | Dependencies | None. No build step, no npm packages, no CDN assets. Decks and deterministic helper scripts use platform/browser or Node built-ins only. |
+| CI validation | A minimal GitHub Actions workflow may run the zero-dependency Node regression checks and example validator on pull requests and `main`. It performs **no deploy, publish, artifact upload, model call, or external service integration**. |
 | Experimental harness | v0.2 provides a provider-neutral, file-based Markdown-to-brief-to-deck benchmark harness. It uses prompts and Node built-ins only; it is not hosted generation or automated factual verification. |
 | Generated deck navigation | v0.2.1 requires generated decks to preserve the canonical base-template navigation script. Static validation checks conservative behavior signals; runtime browser and print QA remain separate gates. |
 | Agent-native source staging | v0.3 adds `tools/prepare-deck.mjs` so one arbitrary text/Markdown source can be staged into the same brief/deck packet flow without benchmark metadata or a model/network call. |
