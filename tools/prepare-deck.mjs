@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Zero-dependency source staging for the agent-native getslide workflow.
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,8 +19,22 @@ const source = readFileSync(sourcePath, 'utf8');
 if (!source.trim()) fail('Source file is empty: ' + args[0]);
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const stagedSourcePath = resolve(out, 'source.md');
+const briefPath = resolve(out, 'DECK_BRIEF.md');
+const deckPacketPath = resolve(out, 'brief-to-deck-packet.md');
+
+if (existsSync(stagedSourcePath)) {
+  const previousSource = readFileSync(stagedSourcePath, 'utf8');
+  if (previousSource !== source && existsSync(briefPath)) {
+    fail(
+      'Source changed but this run directory still contains DECK_BRIEF.md. ' +
+      'Use a new run directory or remove/recreate the brief before staging the changed source.'
+    );
+  }
+}
+
 mkdirSync(out, { recursive: true });
-writeFileSync(resolve(out, 'source.md'), source, 'utf8');
+writeFileSync(stagedSourcePath, source, 'utf8');
 
 const sourcePrompt = readFileSync(resolve(root, 'prompts', 'source-to-deck-brief.md'), 'utf8');
 const schema = readFileSync(resolve(root, 'docs', 'DECK_BRIEF.schema.md'), 'utf8');
@@ -39,8 +53,8 @@ const sourcePacket = [
 ].join('\n');
 writeFileSync(resolve(out, 'source-to-brief-packet.md'), sourcePacket, 'utf8');
 
-const briefPath = resolve(out, 'DECK_BRIEF.md');
 if (!existsSync(briefPath)) {
+  if (existsSync(deckPacketPath)) unlinkSync(deckPacketPath);
   console.log('Prepared ' + display(out) + '. Next: create DECK_BRIEF.md from source-to-brief-packet.md, then rerun this command.');
   process.exit(0);
 }
@@ -58,7 +72,7 @@ const generationResources = files
   .map((file) => '## ' + file + '\n\n' + readFileSync(resolve(root, file), 'utf8'))
   .join('\n\n');
 const deckPacket = '# Brief-to-deck packet\n\n## Current brief\n\n' + brief + '\n\n' + generationResources;
-writeFileSync(resolve(out, 'brief-to-deck-packet.md'), deckPacket, 'utf8');
+writeFileSync(deckPacketPath, deckPacket, 'utf8');
 console.log('Prepared ' + display(out) + '. Next: create index.html from brief-to-deck-packet.md, then validate it.');
 
 function display(path) {
