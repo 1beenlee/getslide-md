@@ -86,7 +86,7 @@ After `DECK_BRIEF.md` exists, rerun:
 node tools/prepare-deck.mjs <source-file> --out <run-directory>
 ```
 
-This creates `brief-to-deck-packet.md` containing the current brief plus the checked-in generation prompt, base template, HTML contract, and pattern catalog.
+This creates `brief-to-deck-packet.md` containing the current brief plus `prompts/brief-to-html-deck.md`, `templates/base-onefile-deck.html`, `docs/HTML_DECK_CONTRACT.md`, and `docs/STUDENT_DEVELOPER_PATTERNS.md`.
 
 ### 5. Generate `index.html`
 
