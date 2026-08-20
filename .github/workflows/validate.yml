@@ -1,0 +1,35 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Show Node version
+        run: node --version
+
+      - name: Syntax check v0.3 tools
+        run: |
+          node --check tools/prepare-deck.mjs
+          node --check tools/test-agent-workflow.mjs
+
+      - name: Test agent-native workflow
+        run: node tools/test-agent-workflow.mjs
+
+      - name: Test existing generation harness
+        run: node tools/test-generation-harness.mjs
+
+      - name: Validate public example deck
+        run: node tools/validate-deck.mjs examples/hackathon-demo/index.html
