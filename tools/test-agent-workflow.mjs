@@ -68,7 +68,7 @@ try {
 
   const sourcePath = join(run, 'input.md');
   const outputPath = join(run, 'output');
-  writeFileSync(sourcePath, '# Demo project\n\nA source-grounded project README with one supported link: https://example.invalid/demo\n', 'utf8');
+  writeFileSync(sourcePath, '# Demo project\n\nA source-grounded project README with a clearly supported project statement.\n', 'utf8');
 
   const first = runNode('tools/prepare-deck.mjs', [sourcePath, '--out', outputPath]);
   assert(first.status === 0, `prepare-deck first pass failed: ${first.stderr || first.stdout}`);
@@ -107,11 +107,9 @@ try {
   assertIncludes(packet, /HTML_DECK_CONTRACT/, 'deck packet omits the HTML contract');
   console.log('PASS: arbitrary source staging creates both agent workflow packets');
 
-  for (const file of ['tools/prepare-deck.mjs', 'tools/test-agent-workflow.mjs']) {
-    const contents = readFileSync(join(root, file), 'utf8');
-    assert(!/\bfetch\s*\(|https?:\/\/|openai|anthropic|gemini/i.test(contents), `${file} introduces a provider or network dependency`);
-  }
-  console.log('PASS: v0.3 agent workflow remains provider-neutral and zero-network');
+  const prepareScript = readFileSync(join(root, 'tools', 'prepare-deck.mjs'), 'utf8');
+  assert(!/\bfetch\s*\(|https?:\/\/|openai|anthropic|gemini/i.test(prepareScript), 'prepare-deck.mjs introduces a provider or network dependency');
+  console.log('PASS: v0.3 source staging remains provider-neutral and zero-network');
 } finally {
   rmSync(run, { recursive: true, force: true });
 }
