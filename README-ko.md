@@ -4,75 +4,191 @@
 
 ![getslide.md 워크플로](docs/assets/readme-hero-ko.png)
 
-**프로젝트 자료를 AI로 계속 수정할 수 있는 독립 실행형 HTML 덱으로 바꿉니다.**
+**프로젝트 자료를 근거가 분명하고 AI로 계속 수정할 수 있는 프레젠테이션 덱으로 바꿉니다.**
 
-getslide.md는 프레젠테이션 덱을 **단일 독립 실행형 HTML 파일**로 만드는 오픈소스 키트입니다. AI 도구가 읽고 이해하며 계속 수정할 수 있는 슬라이드 형식입니다.
+getslide.md는 README, 프로젝트 노트, 보고서 텍스트 같은 기존 자료를 **단일 독립 실행형 HTML 프레젠테이션 덱**으로 바꾸는 오픈소스 **deck compiler + Agent Skill 워크플로**입니다.
 
-README, 프로젝트 노트, 보고서 초안처럼 이미 가진 자료를 가져오면 됩니다. 이 키트는 자료를 발표 가능한 덱으로 구조화하는 방법과, 더 중요하게는 ChatGPT, Claude, Gemini 또는 이미 사용 중인 AI 도구로 계속 개선할 수 있는 덱 형식을 제공합니다.
+핵심은 출력 형식만이 아닙니다. getslide는 원본에서 덱까지 근거의 경계를 명시적으로 유지합니다.
 
-## 왜 PPTX 대신 독립 실행형 HTML인가요?
+```txt
+source materials
+  → facts / gaps / assumptions
+  → DECK_BRIEF.md
+  → standalone HTML deck
+  → validation
+  → targeted AI edits
+```
 
-> PPTX는 수동 편집을 위해 만들어졌습니다.
-> 독립 실행형 HTML 덱은 AI 보조 편집에 더 적합합니다.
+그래서 결과물을 더 쉽게 검토하고 신뢰할 수 있으며, 이미 사용하는 AI/Agent 도구로 이후에도 안전하게 수정할 수 있습니다.
 
-PPTX는 익숙하고 호환성이 좋지만, 반복적인 AI 편집에는 적합하지 않습니다. 구조가 불투명하고 원하는 부분만 고치기 어려우며 레이아웃 규칙도 쉽게 무너질 수 있기 때문입니다. 독립 실행형 HTML 덱은 다릅니다.
+## 왜 독립 실행형 HTML인가요?
+
+독립 실행형 HTML은 AI 기반 반복 수정에 특히 잘 맞기 때문에 canonical artifact로 유지합니다.
 
 | 항목 | 독립 실행형 HTML의 장점 |
 |---|---|
-| AI 편집 가능성 | 일반 텍스트이므로 AI가 덱 전체를 읽고 특정 슬라이드 하나만 수정할 수 있습니다 |
-| 주소 지정 | 각 슬라이드에 `data-slide-id`, `data-pattern` 메타데이터가 있어 수정 지시를 정확히 줄 수 있습니다 |
-| 이식성 | 하나의 파일에 구조, 스타일, 동작이 모두 들어 있으며 오프라인에서 빌드 없이 열립니다 |
-| 공유성 | 호스팅, 링크 공유, 임베드, PDF 출력이 가능합니다 |
-| 비용 | 별도 슬라이드 SaaS 없이 이미 사용하는 AI 구독으로 계속 수정할 수 있습니다 |
-| 버전 관리 | 일반 텍스트 파일처럼 diff, 복사, 아카이브할 수 있습니다 |
+| AI 편집 가능성 | 일반 텍스트이므로 불투명한 바이너리 구조 없이 특정 슬라이드를 정확히 읽고 수정할 수 있습니다 |
+| 주소 지정 | 각 슬라이드에 `data-slide-id`, `data-pattern` 메타데이터가 있어 수정 범위를 정확히 지정할 수 있습니다 |
+| 이식성 | 하나의 파일에 구조, 스타일, 동작이 들어 있으며 빌드 없이 오프라인에서 열립니다 |
+| 공유성 | 호스팅, 링크 공유, 임베드, 브라우저 PDF 출력이 가능합니다 |
+| 버전 관리 | 일반 텍스트처럼 diff, 복사, 아카이브할 수 있습니다 |
+| 검증 가능성 | 전달 전에 구조와 안전 규칙을 정적으로 검사할 수 있습니다 |
 
-목표는 덱을 한 번 생성하는 것이 아닙니다. 웹 자산으로 계속 수정할 수 있는 덱을 만드는 것입니다.
+다만 HTML 자체가 제품의 전부는 아닙니다. 좋은 getslide 덱은 **원본에 근거하고, 발표 가능한 구조를 가지며, 구조 검증을 통과하고, 생성 후에도 AI가 안전하게 수정할 수 있어야 합니다.**
 
 ## 누구를 위한 도구인가요?
 
-1. **학생 개발자**(주 사용자): 해커톤 최종 피치, 캡스톤 데모, 개발자 동아리 발표, GitHub 프로젝트 소개, 사이드 프로젝트 피치.
-2. **구직자**: 링크로 공유하는 포트폴리오 케이스 스터디 덱.
-3. **보고서를 발표하는 학생**: 작성자와 출처에 대한 책임을 유지하면서 자신의 글을 더 명확한 슬라이드 구조로 바꾸는 경우.
+첫 검증 대상은 **학생 개발자**입니다. 해커톤 피치, 캡스톤 데모, 개발 동아리 발표, GitHub 프로젝트 소개, 사이드 프로젝트 데모처럼 이미 README와 프로젝트 자료가 있는 상황을 우선 검증합니다.
 
-GitHub, Markdown, AI 채팅 도구 사용에 익숙하다면 이 키트가 적합합니다.
+같은 워크플로는 이후 포트폴리오/구직용 덱이나 기술 빌더·PM 등 기존 자료를 더 나은 발표 산출물로 바꾸려는 사용자에게 확장할 수 있습니다.
 
-## 키트 구성
+Markdown과 AI Agent/채팅 도구 사용에 익숙하다면 별도 슬라이드 SaaS 없이 사용할 수 있도록 설계했습니다.
+
+## 구성
 
 ```txt
+.agents/skills/getslide/
+  SKILL.md                      Agent Skills / Codex 프로젝트 스킬
+
+.claude/skills/getslide/
+  SKILL.md                      Claude Code용 byte-identical 미러
 docs/
-  DECK_BRIEF.schema.md          The DECK_BRIEF.md standard (structured deck brief)
-  HTML_DECK_CONTRACT.md         What every generated deck must contain
-  STUDENT_DEVELOPER_PATTERNS.md Slide pattern catalog for developer presentations
-  VALIDATION.md                 Pass/fail checklist before you present or share
+  DECK_BRIEF.schema.md          원본/의도/근거 경계 표준
+  HTML_DECK_CONTRACT.md         생성 덱의 구조 계약
+  STUDENT_DEVELOPER_PATTERNS.md 학생 개발자용 슬라이드 패턴
+  VALIDATION.md                 발표/공유 전 검증 체크리스트
+  AGENT_WORKFLOW.md             v0.3 Agent-native 워크플로
+  EDITABILITY_EVAL.md           생성 후 targeted-edit 평가
+  GENERATION_HARNESS_SPEC.md    v0.2 벤치마크 하니스 계약
+  EVALUATION_RUBRIC.md          첫 생성 품질 평가 기준
 
 templates/
-  base-onefile-deck.html        Reusable standalone HTML deck skeleton
+  base-onefile-deck.html        재사용 가능한 standalone HTML skeleton
 
 examples/
   hackathon-demo/
-    DECK_BRIEF.md               Example brief for a fictional hackathon project
-    index.html                  Complete example deck (Developer Demo theme)
+    DECK_BRIEF.md               가상의 예시 brief
+    index.html                  완성된 Developer Demo deck
 
 prompts/
-  brief-to-html-deck.md         Prompt: turn a DECK_BRIEF.md into a deck
-  edit-existing-html-deck.md    Prompt: safely edit an existing deck
-  review-deck-structure.md      Prompt: review a deck before finalizing
+  source-to-deck-brief.md       source → DECK_BRIEF prompt
+  brief-to-html-deck.md         DECK_BRIEF → deck prompt
+  edit-existing-html-deck.md    targeted editing prompt
+  review-deck-structure.md      review prompt
 
 tools/
-  validate-deck.mjs             Zero-dependency deck validator (Node built-ins only)
+  prepare-deck.mjs              임의의 text/Markdown source staging
+  validate-deck.mjs             zero-dependency deck validator
+  test-agent-workflow.mjs       v0.3 workflow regression checks
+  *generation*.mjs              v0.2 benchmark helpers
+
+eval/
+  fixtures/                     가상의 benchmark source
+  reports/                      체크인된 benchmark summary
 ```
 
-## 의도적으로 포함하지 않은 것
+## 가장 빠른 사용법: getslide Agent Skill
 
-이것은 SaaS가 아니라 스타터 키트입니다. 의도적으로 다음을 포함하지 않습니다.
+저장소에는 호환 가능한 Agent가 사용할 수 있는 프로젝트 레벨 `getslide` skill이 포함되어 있습니다.
 
-- 웹 앱, 계정, 인증
-- 결제 또는 구독
-- 업로드 파이프라인, 데이터베이스, 큐, 호스팅 서비스
-- PPTX 내보내기(PDF 출력이 지원하는 내보내기 방식입니다)
-- 빌드 단계와 런타임 의존성
+- Agent Skills / Codex 호환 경로: `.agents/skills/getslide/SKILL.md`
+- Claude Code 프로젝트 스킬 경로: `.claude/skills/getslide/SKILL.md`
 
-모든 항목은 텍스트 에디터, 브라우저, 선택한 AI 도구만으로 동작합니다.
+두 파일은 의도적으로 완전히 동일하며 regression test가 drift를 막습니다.
+
+호환 Agent에서 저장소를 연 뒤 다음처럼 요청할 수 있습니다.
+
+```txt
+Use getslide to turn README.md into a 5-minute developer demo deck.
+Keep every factual claim grounded in the source and validate the result.
+```
+
+Agent 워크플로는 다음 순서로 진행합니다.
+
+1. 원본 문구를 바꾸지 않고 source를 staging합니다.
+2. `DECK_BRIEF.md`를 생성합니다.
+3. confidence / gaps / assumptions를 source-sufficiency gate로 사용합니다.
+4. 하나의 standalone `index.html`을 생성합니다.
+5. structural validator를 실행합니다.
+6. 실제로 검증한 항목과 검증하지 못한 항목을 구분해 보고합니다.
+
+정확한 워크플로와 경계는 [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md)를 참고하세요.
+
+## 수동/로컬 경로: source 하나 staging하기
+
+결정적인 로컬 staging 도구만 직접 사용할 수도 있습니다.
+
+```sh
+node tools/prepare-deck.mjs README.md --out getslide-output/my-deck
+```
+
+첫 실행 결과:
+
+```txt
+getslide-output/my-deck/
+  source.md
+  source-to-brief-packet.md
+```
+
+이 packet으로 `DECK_BRIEF.md`를 만든 뒤 같은 명령을 다시 실행하면 다음이 추가됩니다.
+
+```txt
+  DECK_BRIEF.md
+  brief-to-deck-packet.md
+```
+
+이 packet으로 AI 도구에서 `index.html`을 생성한 다음 validator를 실행합니다.
+
+`prepare-deck.mjs`는 Node built-ins만 사용합니다. 모델을 호출하거나 URL을 가져오거나 파일을 업로드하지 않으며 benchmark metadata도 필요하지 않습니다.
+
+## DECK_BRIEF.md: 근거 경계
+
+`DECK_BRIEF.md`는 자료 더미와 완성된 덱 사이의 구조화된 중간 산출물입니다.
+
+```txt
+your materials
+  → key_points              원본이 뒷받침하는 사실/주장
+  → missing_information     원본에는 없는 유용하거나 필요한 사실
+  → auto_filled_assumptions 표시된 저위험 framing default
+  → confidence              source sufficiency gate
+  → standalone HTML deck
+```
+
+이 brief의 목적은 부족한 근거가 그럴듯한 허구로 바뀌는 것을 막는 것입니다. 형식은 [docs/DECK_BRIEF.schema.md](docs/DECK_BRIEF.schema.md)에 정의되어 있고, 가상의 완전한 예시는 [examples/hackathon-demo/DECK_BRIEF.md](examples/hackathon-demo/DECK_BRIEF.md)에 있습니다.
+
+### Agent Skill의 confidence 동작
+
+- **High** — 사용자가 end-to-end 덱 생성을 요청했고 필요한 factual gap이나 위험한 새 가정이 없다면 추가 승인 턴 없이 진행할 수 있습니다.
+- **Medium** — gaps/assumptions를 드러내고, 기존 요청이 저위험 auto-fill을 분명히 허용하며 사실을 지어내지 않는 경우에만 계속합니다.
+- **Low** — polished deck 생성 전에 멈추고 더 많은 source material을 요청합니다.
+
+v0.2 benchmark harness는 의도적으로 더 엄격한 review boundary를 유지합니다. benchmark와 interactive Agent Skill은 서로 다른 목적을 가집니다.
+
+## 덱 검증
+
+의존성 없는 Node.js 스크립트가 발표 또는 공유 전에 덱 구조를 검사합니다.
+
+```sh
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+slide ID, pattern, placeholder, private/internal trace, print/keyboard contract signal 등 정적으로 검사 가능한 항목을 확인하고 실패 시 0이 아닌 종료 코드를 반환합니다.
+
+validator가 시각 품질까지 증명하지는 않습니다. 실제 브라우저/print 확인이 필요한 항목은 [docs/VALIDATION.md](docs/VALIDATION.md)를 참고하세요.
+
+## AI 수정이 실제로 안전한지 평가하기
+
+핵심 주장은 “AI가 유효한 덱 하나를 생성했다”가 아니라 **이후의 작은 수정도 신뢰할 수 있게 유지되는가**입니다.
+
+[docs/EDITABILITY_EVAL.md](docs/EDITABILITY_EVAL.md)는 다섯 가지 필수 probe를 정의합니다.
+
+1. 특정 슬라이드 copy edit
+2. 슬라이드 하나를 두 장으로 분리
+3. 새로 제공된 근거 추가
+4. 슬라이드 순서 변경
+5. tone / length 조정
+
+각 probe는 change containment, source grounding, HTML contract, navigation/page integrity, readability, trace safety를 검사합니다. validator PASS만으로 editability를 증명했다고 보지 않습니다.
 
 ## 빠른 시작: 예시 덱 열기
 
@@ -81,53 +197,59 @@ tools/
 1. 이 저장소를 clone하거나 다운로드합니다.
 2. 최신 브라우저에서 [examples/hackathon-demo/index.html](examples/hackathon-demo/index.html)을 엽니다. 서버 없이 오프라인에서도 동작합니다.
 3. `←` / `→` 화살표 키, 사이드바 목차 또는 스크롤로 이동합니다.
-4. PDF로 내보내려면 브라우저의 인쇄 대화상자를 사용합니다. 각 슬라이드는 한 페이지로 출력됩니다.
+4. PDF로 내보내려면 브라우저 인쇄 대화상자를 사용합니다. 각 슬라이드는 한 페이지로 출력됩니다.
 
-## AI로 덱 편집하기
+## AI로 기존 덱 수정하기
 
-덱은 읽기 쉬운 하나의 HTML 파일이므로, AI 도구에 붙여넣거나 첨부한 뒤 정확한 수정을 요청할 수 있습니다.
+하나의 읽기 쉬운 HTML 파일이므로 `data-slide-id`로 수정 범위를 정확하게 지정할 수 있습니다.
 
 ```txt
 Revise only the slide with data-slide-id="problem".
 Make the headline sharper and reduce the body to three bullets.
-Do not change CSS tokens. Preserve the existing visual system.
+Do not change CSS tokens or the navigation system.
+Preserve the factual meaning from DECK_BRIEF.md.
 ```
 
-준비된 프롬프트는 [prompts/](prompts/)에 있습니다. AI와 사람이 덱을 편집할 때 따라야 할 규칙은 [docs/HTML_DECK_CONTRACT.md](docs/HTML_DECK_CONTRACT.md)에 정의되어 있습니다.
+준비된 프롬프트는 [prompts/](prompts/)에 있고, 구조 규칙은 [docs/HTML_DECK_CONTRACT.md](docs/HTML_DECK_CONTRACT.md)에 있습니다.
 
-## DECK_BRIEF.md 워크플로
+## 의도적으로 포함하지 않은 것
 
-`DECK_BRIEF.md`는 자료 더미와 완성된 덱 사이에 놓이는 구조화된 중간 단계입니다.
+이 저장소는 hosted slide product가 아니라 portable open-source workflow입니다. 현재 의도적으로 포함하지 않는 항목은 다음과 같습니다.
 
-```txt
-your materials (README, notes, report)
-  → DECK_BRIEF.md   (audience, goal, core message, key points, gaps, assumptions)
-  → review & adjust (you stay in control of the content)
-  → standalone HTML deck
-  → keep editing with your AI tool
-```
+- 웹 앱, 계정, 인증
+- 결제 또는 구독
+- 업로드 파이프라인, 데이터베이스, 큐, hosted model inference, 사용자별 hosting
+- PDF/image/URL/repository ingestion
+- analytics / public gallery
+- WYSIWYG editor
+- 현재 PPTX export; 브라우저 print-to-PDF는 지원하며 compatibility output은 실제 사용 필요가 검증될 때까지 보류
+- build step / runtime dependency
 
-브리프는 덱이 무엇을 말해야 하는지, 어떤 정보가 빠졌는지, 어떤 가정이 자동으로 채워졌는지를 기록해 생성 과정을 예측 가능하게 만듭니다. 따라서 아무 정보도 조용히 지어내지 않습니다. 형식은 [docs/DECK_BRIEF.schema.md](docs/DECK_BRIEF.schema.md)에 정의되어 있으며, 완전한 예시는 [examples/hackathon-demo/DECK_BRIEF.md](examples/hackathon-demo/DECK_BRIEF.md)에서 볼 수 있습니다.
-
-## 덱 검증
-
-의존성 없는 Node.js 스크립트가 발표 또는 공유 전에 덱 구조를 확인합니다. 슬라이드 ID의 고유성, 필수 메타데이터, 남은 placeholder, 우발적인 비공개 흔적, 인쇄와 키보드 지원을 검사합니다.
-
-```sh
-node tools/validate-deck.mjs examples/hackathon-demo/index.html
-```
-
-Node만 있으면 되며(설치나 의존성 불필요), 실패하면 0이 아닌 종료 코드로 끝납니다. 전체 체크리스트와 스크립트가 다루는 범위 및 다루지 않는 범위는 [docs/VALIDATION.md](docs/VALIDATION.md)를 참고하세요.
+정확한 공개/비공개 경계는 [OPEN_SOURCE_BOUNDARY.md](OPEN_SOURCE_BOUNDARY.md)를 참고하세요.
 
 ## getslide.md가 아닌 것
 
-- 범용 AI 프레젠테이션 생성기나 Canva/Gamma 스타일의 디자인 플랫폼이 아닙니다.
-- PPTX 생성기가 아닙니다.
-- 대필 또는 과제 작성 서비스가 아닙니다. 이 키트는 **사용자가 제공한 자료와 직접 수행한 작업**을 구조화하고 표현하며, 사용자의 일을 대신하거나 작성자 표시를 왜곡하는 데 쓰여서는 안 됩니다.
+- 범용 AI 프레젠테이션 생성기나 Canva/Gamma형 디자인 플랫폼이 아닙니다.
+- PowerPoint 대체재가 아닙니다.
+- 대필 또는 과제 작성 서비스가 아닙니다. **사용자가 제공한 자료와 직접 수행한 작업**을 구조화하고 표현하며 저자성을 왜곡하는 데 쓰여서는 안 됩니다.
 
-## Experimental generation harness
+## Experimental benchmark harness
 
-v0.2 실험 하니스는 README 또는 Markdown에서 brief, Developer Demo HTML deck, validation, benchmark까지 이어지는 반복 가능한 흐름을 제공합니다. 모델 API를 호출하지 않으며, 원하는 AI 도구에서 저장소 프롬프트를 사용한 다음 로컬 도구를 실행합니다. [하니스 명세](docs/GENERATION_HARNESS_SPEC.md), [평가 기준](docs/EVALUATION_RUBRIC.md), [벤치마크 코퍼스](eval/README.md)를 참고하세요.
+v0.2 benchmark harness는 가상의 fixture를 사용해 Markdown → brief → Developer Demo deck → validation을 반복 평가하는 워크플로입니다. 모델 API를 호출하지 않습니다. [하니스 명세](docs/GENERATION_HARNESS_SPEC.md), [평가 기준](docs/EVALUATION_RUBRIC.md), [벤치마크 코퍼스](eval/README.md)를 참고하세요.
+
+v0.3은 이 기반 위에 Agent-native workflow와 editability evaluation을 추가하며 기존 benchmark 의미를 대체하지 않습니다.
+
+## 저장소 self-check
+
+Agent-native workflow를 변경할 때 다음을 실행합니다.
+
+```sh
+node tools/test-agent-workflow.mjs
+node tools/test-generation-harness.mjs
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+완료된 로컬 benchmark run이 실제로 있을 때만 aggregation을 새로 실행합니다. 체크인된 과거 summary를 fresh test로 보고하지 않습니다.
 
 ## 라이선스
 
