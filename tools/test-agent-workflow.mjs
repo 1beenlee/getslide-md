@@ -68,7 +68,8 @@ try {
 
   const sourcePath = join(run, 'input.md');
   const outputPath = join(run, 'output');
-  writeFileSync(sourcePath, '# Demo project\n\nA source-grounded project README with a clearly supported project statement.\n', 'utf8');
+  const originalSource = '# Demo project\n\nA source-grounded project README with a clearly supported project statement.\n';
+  writeFileSync(sourcePath, originalSource, 'utf8');
 
   const first = runNode('tools/prepare-deck.mjs', [sourcePath, '--out', outputPath]);
   assert(first.status === 0, `prepare-deck first pass failed: ${first.stderr || first.stdout}`);
@@ -78,7 +79,7 @@ try {
   assert(!existsSync(join(outputPath, 'brief-to-deck-packet.md')), 'prepare-deck created a deck packet before DECK_BRIEF.md existed');
 
   const stagedSource = readFileSync(join(outputPath, 'source.md'), 'utf8');
-  assert(stagedSource === readFileSync(sourcePath, 'utf8'), 'prepare-deck changed source wording during staging');
+  assert(stagedSource === originalSource, 'prepare-deck changed source wording during staging');
 
   writeFileSync(join(outputPath, 'DECK_BRIEF.md'), [
     '---',
@@ -106,6 +107,20 @@ try {
   assertIncludes(packet, /Do not replace, simplify, remove, or rewrite the template navigation script/i, 'deck packet omits canonical navigation protection');
   assertIncludes(packet, /HTML_DECK_CONTRACT/, 'deck packet omits the HTML contract');
   console.log('PASS: arbitrary source staging creates both agent workflow packets');
+
+  writeFileSync(sourcePath, '# Changed project\n\nThis is materially different source material.\n', 'utf8');
+  const staleBriefAttempt = runNode('tools/prepare-deck.mjs', [sourcePath, '--out', outputPath]);
+  assert(staleBriefAttempt.status !== 0, 'prepare-deck accepted changed source while an old DECK_BRIEF.md remained');
+  assertIncludes(staleBriefAttempt.stderr, /Source changed.*DECK_BRIEF\.md/i, 'changed-source failure does not explain the stale brief risk');
+  assert(readFileSync(join(outputPath, 'source.md'), 'utf8') === originalSource, 'prepare-deck overwrote staged source before rejecting a stale brief');
+  console.log('PASS: changed source cannot be combined with a stale DECK_BRIEF.md');
+
+  writeFileSync(sourcePath, originalSource, 'utf8');
+  rmSync(join(outputPath, 'DECK_BRIEF.md'));
+  const reset = runNode('tools/prepare-deck.mjs', [sourcePath, '--out', outputPath]);
+  assert(reset.status === 0, `prepare-deck reset pass failed: ${reset.stderr || reset.stdout}`);
+  assert(!existsSync(packetPath), 'prepare-deck left a stale brief-to-deck packet after DECK_BRIEF.md was removed');
+  console.log('PASS: staging without a brief removes stale generation packets');
 
   const prepareScript = readFileSync(join(root, 'tools', 'prepare-deck.mjs'), 'utf8');
   assert(!/\bfetch\s*\(|https?:\/\/|openai|anthropic|gemini/i.test(prepareScript), 'prepare-deck.mjs introduces a provider or network dependency');
