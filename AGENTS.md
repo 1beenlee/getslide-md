@@ -4,43 +4,68 @@ Instructions for AI coding agents (Claude, Codex, or others) working on this rep
 
 ## Project thesis
 
-getslide.md turns project materials into **AI-editable standalone HTML decks**.
+getslide.md is a **source-grounded deck compiler for AI-native workflows**.
 
-> PPTX was built for manual editing. Standalone HTML decks are better for AI-assisted editing.
+The workflow keeps a visible evidence boundary:
 
-The canonical output is always **one standalone HTML file** that a user can keep editing with the AI tool they already use. This repo is the public open-source kit that proves the thesis: a skeleton, a brief schema, a pattern catalog, prompts, one example deck, and a validation checklist. It is not the product's automation layer.
+```text
+source materials
+  → facts / gaps / assumptions
+  → DECK_BRIEF.md
+  → standalone HTML deck
+  → validation
+  → targeted AI edits
+```
+
+The canonical output remains **one standalone HTML file** because it is addressable, diffable, offline-friendly, and easy for AI tools to revise. HTML is an architectural advantage, not the sole product claim. The durable quality bar is source fidelity + presentation structure + safe iterative editability.
+
+The public repo includes the format **and the portable agent workflow** that composes checked-in public resources. Hosted user-material automation and product operations remain outside this repository.
 
 ## Hard constraints
 
-1. **Public-safe only.** No private company information, no internal tool names or traces, no personal data, no content derived from real users. See `OPEN_SOURCE_BOUNDARY.md` for the full boundary; it overrides anything else.
+1. **Public-safe only.** No private company information, internal/private agent traces, personal data, secrets, or content derived from real users. See `OPEN_SOURCE_BOUNDARY.md`; it overrides anything else.
 2. **No ghostwriting positioning.** Never describe the product as writing assignments, reports, or presentations *for* someone. It structures materials the user provides. Avoid copy like "we write your presentation."
-3. **No SaaS overbuild.** Do not add auth, payments, databases, upload systems, queues, dashboards, rate limiting, hosting services, analytics, or marketplace code. The "Not now" list in `PRODUCT_DECISIONS.md` is binding.
-4. **No dependencies.** No npm packages, build steps, CDN links, external fonts, or network requests. Every deck must open offline as a plain file.
+3. **No SaaS overbuild.** Do not add auth, payments, databases, upload systems, queues, dashboards, rate limiting, hosted inference, hosting services, analytics, public-gallery infrastructure, or marketplace code. The "Not now" list in `PRODUCT_DECISIONS.md` is binding.
+4. **No provider/runtime dependency.** No npm packages, build steps, CDN links, external fonts, model SDKs, API keys, or network requests. Decks must open offline; deterministic helper scripts use Node built-ins only.
 5. **No fake real metrics.** Example numbers must be fictional and explicitly labeled as demo/example data.
-6. **English-first.** All public repo content is written in English.
-7. **Gitignored private planning/source folders are input-only.** Any locally present folder excluded by `.gitignore` (planning documents, private sources, internal notes) may inform your work but must never be referenced from public files, copied from verbatim, or committed.
+6. **English-first canonical content.** Canonical docs, prompts, examples, and skill instructions are English-first. Translations may exist but are not the source of truth.
+7. **Gitignored private planning/source folders are input-only.** Any locally present folder excluded by `.gitignore` may inform private planning but must never be referenced from public files, copied verbatim, or committed.
+8. **Agent Skill copies stay synchronized.** `.agents/skills/getslide/SKILL.md` and `.claude/skills/getslide/SKILL.md` are intentionally byte-identical. Update both in the same change and run the parity test.
 
 ## Repo structure
 
 ```txt
 README.md                       Positioning and usage
-PRODUCT_DECISIONS.md            Decision log (Decided / Deferred / Not now / Open questions)
-OPEN_SOURCE_BOUNDARY.md         What may and may not be published
+PRODUCT_DECISIONS.md            Decision log
+OPEN_SOURCE_BOUNDARY.md         Public/private boundary
 AGENTS.md                       This file
 LICENSE                         MIT
+.agents/skills/getslide/        Agent Skills / Codex project skill
+.claude/skills/getslide/        Byte-identical Claude Code project skill
 docs/
   DECK_BRIEF.schema.md          Deck brief standard
   HTML_DECK_CONTRACT.md         Requirements every generated deck must satisfy
   STUDENT_DEVELOPER_PATTERNS.md Slide pattern catalog
   VALIDATION.md                 Pass/fail checklist
+  GENERATION_HARNESS_SPEC.md    v0.2 benchmark harness contract
+  EVALUATION_RUBRIC.md          First-generation quality rubric
+  AGENT_WORKFLOW.md             v0.3 agent-native workflow
+  EDITABILITY_EVAL.md           Post-generation targeted-edit evaluation
 templates/
   base-onefile-deck.html        Reusable standalone deck skeleton
 examples/
   hackathon-demo/               Fictional example: DECK_BRIEF.md + index.html
 prompts/
+  source-to-deck-brief.md       Source-to-brief prompt
   brief-to-html-deck.md         Generation prompt
   edit-existing-html-deck.md    Editing prompt
   review-deck-structure.md      Review prompt
+tools/
+  prepare-deck.mjs              Arbitrary text/Markdown source staging
+  validate-deck.mjs             Structural validator
+  test-agent-workflow.mjs       v0.3 agent-workflow regression checks
+  *generation*.mjs              v0.2 benchmark helpers
+eval/                           Fictional benchmark fixtures and reports
 ```
 
 Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIONS.md`.
@@ -49,39 +74,54 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 
 - **Decks follow the contract.** Any HTML deck you create or edit must satisfy `docs/HTML_DECK_CONTRACT.md`: single file, `section.slide` with unique `data-slide-id` and a `data-pattern` from the catalog, TOC/nav, page numbers, keyboard navigation, print CSS, `:root` design tokens.
 - **Edit slides, not the system.** When changing deck content, do not restructure CSS tokens, navigation script, or slide markup conventions unless that is the explicit task.
+- **Source grounding is mandatory.** New factual content must be traceable to the source/brief. Missing facts stay in `missing_information`; low-risk framing defaults stay visible in `auto_filled_assumptions`.
 - **Templates may contain placeholders; examples may not.** `templates/` uses clearly-safe placeholder content. Anything under `examples/` must be complete, with zero unresolved placeholders (`TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, lorem ipsum).
-- **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update `examples/hackathon-demo/DECK_BRIEF.md` and the prompts that reference the fields.
+- **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update the fictional example brief and prompts that reference the fields.
 - **Record decisions.** Any scope or positioning change goes into `PRODUCT_DECISIONS.md` in the same change.
+- **Portable workflow only.** Public agent helpers may stage user-supplied text locally and assemble checked-in public resources; they may not fetch, upload, host, or call a model/provider.
 
 ## Validation expectations
 
-After editing or creating any deck, **run the validator** on every deck you touched and confirm it passes (exit code `0`):
+After editing or creating any deck, run the validator on every deck you touched and confirm exit code `0`:
 
 ```sh
 node tools/validate-deck.mjs <path-to-deck.html>
 ```
 
-The validator (`tools/validate-deck.mjs`, Node built-ins only) covers the automatable checks: slide IDs, `data-pattern`, uniqueness, placeholders, private/internal traces, print CSS, keyboard navigation. It does not replace the checklist.
+The validator covers automatable structure. It does not replace the manual checklist.
 
-Then run the remaining **Manual checks** in `docs/VALIDATION.md` — the ones the validator cannot cover:
+When changing the v0.3 agent workflow, also run:
+
+```sh
+node tools/test-agent-workflow.mjs
+node tools/test-generation-harness.mjs
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+Run existing benchmark aggregation only when the completed local benchmark runs are actually present. A checked-in historical PASS summary is not a fresh test run.
+
+Then perform the remaining manual checks in `docs/VALIDATION.md` when an actual browser/print path is available:
 
 - TOC/nav entries match the slides,
 - page numbers match slide order,
 - print mode renders one slide per page,
-- no viewport overflow, readable font sizes,
-- no ghostwriting language anywhere in the diff.
+- no viewport overflow and readable font sizes,
+- no ghostwriting language or private traces appear in the diff.
 
-Report what you checked and the results; do not claim validation you did not perform.
+For claims about iterative AI editability, use `docs/EDITABILITY_EVAL.md`. A validator pass alone is insufficient.
+
+Report what you actually checked; never convert static inspection into a browser/visual PASS.
 
 ## What NOT to build yet
 
-- Automated ingestion of user files (PDF/image/URL parsing).
-- Any server, API, or hosted service.
-- Payment, auth, accounts, queues, analytics, marketplace.
+- Automated PDF/image/URL/repository ingestion.
+- Any server, API, hosted inference, or hosted delivery service.
+- Payment, auth, accounts, queues, analytics, public gallery, marketplace.
 - A WYSIWYG editor.
+- PPTX export unless a later task records validated compatibility demand.
 - Additional themes/examples beyond what a task explicitly requests.
 
-If a task seems to require one of these, stop and surface the conflict instead of building it.
+If a task seems to require one of these, surface the scope conflict instead of silently expanding the repository.
 
 ## Final report format
 

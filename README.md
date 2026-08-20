@@ -4,75 +4,192 @@
 
 [한국어](./README-ko.md)
 
-**Turn project materials into AI-editable standalone HTML decks.**
+**Turn project materials into source-grounded, AI-editable presentation decks.**
 
-getslide.md is an open-source kit for building presentation decks as **single standalone HTML files** — a slide format that AI tools can read, understand, and keep editing.
+getslide.md is an open-source **deck compiler and Agent Skill workflow** for turning a README, project notes, or report text into one standalone HTML presentation deck.
 
-You bring your own materials (a README, project notes, a report draft). The kit gives you a structured way to turn them into a presentable deck, and — more importantly — a deck format you can keep improving with ChatGPT, Claude, Gemini, or whatever AI tool you already use.
+The important part is not just the output format. getslide keeps a visible evidence boundary from source to deck:
 
-## Why standalone HTML instead of PPTX?
+```txt
+source materials
+  → facts / gaps / assumptions
+  → DECK_BRIEF.md
+  → standalone HTML deck
+  → validation
+  → targeted AI edits
+```
 
-> PPTX was built for manual editing.
-> Standalone HTML decks are better for AI-assisted editing.
+That makes the result easier to trust, easier to review, and easier to keep editing with the AI/agent tool you already use.
 
-PPTX is familiar and compatible, but it is a poor format for iterative AI editing: the structure is opaque, targeted edits are hard, and layout rules are easy to break. A standalone HTML deck is different:
+## Why standalone HTML?
+
+Standalone HTML remains the canonical artifact because it is unusually well suited to AI-assisted iteration:
 
 | Dimension | Standalone HTML advantage |
 |---|---|
-| AI editability | Plain text — an AI can read the whole deck and edit exactly one slide |
-| Addressability | Each slide carries `data-slide-id` and `data-pattern` metadata, so edit instructions can be precise |
+| AI editability | Plain text — an AI can inspect and change a precise slide without opaque binary structure |
+| Addressability | Each slide carries `data-slide-id` and `data-pattern` metadata for targeted edits |
 | Portability | One file contains structure, style, and behavior; works offline; no build step |
-| Shareability | Host it, link it, embed it, print it to PDF |
-| Cost | Keep editing with the AI subscription you already have — no separate slide SaaS needed |
+| Shareability | Host it, link it, embed it, or print it to PDF |
 | Versioning | Diff it, copy it, archive it like any text file |
+| Validation | Static structure and safety rules can be checked before delivery |
 
-The goal is not "generate a deck once." The goal is a deck that stays editable as a web asset.
+HTML is an architectural advantage, not the whole product thesis. A good getslide deck must also stay **source-grounded, presentation-ready, structurally valid, and safely editable after generation**.
 
 ## Who is this for?
 
-1. **Student developers** (primary) — hackathon final pitches, capstone demos, developer club presentations, GitHub project showcases, side-project pitches.
-2. **Job seekers** — portfolio case-study decks shared as links.
-3. **Students who present reports** — turning their own written work into a clearer slide structure while preserving authorship and source responsibility.
+The first validation cohort is **student developers** making hackathon pitches, capstone demos, developer-club presentations, GitHub project showcases, and side-project demos.
 
-If you are comfortable with GitHub, Markdown, and an AI chat tool, this kit is built for you.
+The same workflow can later be tested with portfolio/job-seeker decks and other technical builders who already have source material but want a better presentation artifact.
+
+If you are comfortable with Markdown and an AI agent/chat tool, this kit is designed to be useful without another slide SaaS subscription.
 
 ## What's in the kit
 
 ```txt
+.agents/skills/getslide/
+  SKILL.md                      Agent Skills / Codex project skill
+
+.claude/skills/getslide/
+  SKILL.md                      Byte-identical Claude Code project skill
+
 docs/
-  DECK_BRIEF.schema.md          The DECK_BRIEF.md standard (structured deck brief)
+  DECK_BRIEF.schema.md          Structured source/intent/evidence boundary
   HTML_DECK_CONTRACT.md         What every generated deck must contain
   STUDENT_DEVELOPER_PATTERNS.md Slide pattern catalog for developer presentations
   VALIDATION.md                 Pass/fail checklist before you present or share
+  AGENT_WORKFLOW.md             v0.3 agent-native workflow
+  EDITABILITY_EVAL.md           Post-generation targeted-edit evaluation
+  GENERATION_HARNESS_SPEC.md    v0.2 benchmark harness contract
+  EVALUATION_RUBRIC.md          First-generation quality rubric
 
 templates/
   base-onefile-deck.html        Reusable standalone HTML deck skeleton
 
 examples/
   hackathon-demo/
-    DECK_BRIEF.md               Example brief for a fictional hackathon project
-    index.html                  Complete example deck (Developer Demo theme)
+    DECK_BRIEF.md               Fictional example brief
+    index.html                  Complete Developer Demo deck
 
 prompts/
-  brief-to-html-deck.md         Prompt: turn a DECK_BRIEF.md into a deck
-  edit-existing-html-deck.md    Prompt: safely edit an existing deck
-  review-deck-structure.md      Prompt: review a deck before finalizing
+  source-to-deck-brief.md       Source → DECK_BRIEF prompt
+  brief-to-html-deck.md         DECK_BRIEF → deck prompt
+  edit-existing-html-deck.md    Targeted editing prompt
+  review-deck-structure.md      Review prompt
 
 tools/
-  validate-deck.mjs             Zero-dependency deck validator (Node built-ins only)
+  prepare-deck.mjs              Stage one arbitrary text/Markdown source
+  validate-deck.mjs             Zero-dependency deck validator
+  test-agent-workflow.mjs       v0.3 workflow regression checks
+  *generation*.mjs              v0.2 benchmark helpers
+
+eval/
+  fixtures/                     Fictional benchmark sources
+  reports/                      Checked-in benchmark summary
 ```
 
-## What is intentionally NOT included
+## Fastest path: use the getslide Agent Skill
 
-This is a starter kit, not a SaaS. There is deliberately:
+The repository ships a project-level `getslide` skill for compatible agents.
 
-- no web app, no accounts, no authentication
-- no payment or subscription
-- no upload pipeline, database, queue, or hosting service
-- no PPTX export (print-to-PDF is the supported export path)
-- no build step and no runtime dependencies
+- Agent Skills / Codex-compatible path: `.agents/skills/getslide/SKILL.md`
+- Claude Code project-skill path: `.claude/skills/getslide/SKILL.md`
 
-Everything here works with a text editor, a browser, and the AI tool of your choice.
+The two skill files are intentionally identical. A regression test prevents them from drifting.
+
+With the repository open in a compatible agent, ask for a deck from a README/Markdown source, for example:
+
+```txt
+Use getslide to turn README.md into a 5-minute developer demo deck.
+Keep every factual claim grounded in the source and validate the result.
+```
+
+The agent workflow will:
+
+1. stage the source without changing its wording,
+2. create `DECK_BRIEF.md`,
+3. use confidence/gaps/assumptions as a source-sufficiency gate,
+4. generate one standalone `index.html`,
+5. run the structural validator,
+6. report what was and was not manually/browser verified.
+
+See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) for the exact workflow and boundaries.
+
+## Manual/local path: stage one source file
+
+You can also use the deterministic staging tool directly:
+
+```sh
+node tools/prepare-deck.mjs README.md --out getslide-output/my-deck
+```
+
+First run:
+
+```txt
+getslide-output/my-deck/
+  source.md
+  source-to-brief-packet.md
+```
+
+Create `DECK_BRIEF.md` from the packet, then rerun the same command. It will add:
+
+```txt
+  DECK_BRIEF.md
+  brief-to-deck-packet.md
+```
+
+Use that packet with your AI tool to create `index.html`, then validate it.
+
+`prepare-deck.mjs` uses Node built-ins only. It does not call a model, fetch a URL, upload a file, or require benchmark metadata.
+
+## The DECK_BRIEF.md evidence boundary
+
+`DECK_BRIEF.md` is the structured intermediate between "pile of materials" and "finished deck":
+
+```txt
+your materials
+  → key_points             source-supported facts/claims
+  → missing_information    useful facts the source does not provide
+  → auto_filled_assumptions visible, low-risk framing defaults
+  → confidence             source sufficiency gate
+  → standalone HTML deck
+```
+
+The brief exists so missing evidence never turns into confident-looking invented content. The schema is defined in [docs/DECK_BRIEF.schema.md](docs/DECK_BRIEF.schema.md), with a fictional complete example in [examples/hackathon-demo/DECK_BRIEF.md](examples/hackathon-demo/DECK_BRIEF.md).
+
+### Confidence behavior in the Agent Skill
+
+- **High** — an explicit end-to-end deck request may proceed when no unresolved factual gap or risky assumption is needed.
+- **Medium** — surface gaps/assumptions; continue only when the user's existing request clearly permits low-risk auto-fill without inventing facts.
+- **Low** — stop before polished deck generation and ask for more source material.
+
+The v0.2 benchmark harness intentionally keeps a stricter review boundary; the benchmark and interactive skill serve different purposes.
+
+## Validate a deck
+
+A zero-dependency Node.js script checks a deck's structure before you present or share it:
+
+```sh
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+It checks slide IDs, patterns, placeholders, private/internal traces, print/keyboard contract signals, and other static requirements. It exits non-zero on failure.
+
+The validator does **not** prove visual quality. See [docs/VALIDATION.md](docs/VALIDATION.md) for the manual browser/print checks that still matter.
+
+## Test whether AI edits stay safe
+
+The defining claim is not "AI generated one valid deck." It is that later edits remain small, trustworthy, and structurally safe.
+
+[docs/EDITABILITY_EVAL.md](docs/EDITABILITY_EVAL.md) defines five required probes:
+
+1. targeted single-slide copy edit,
+2. split one slide into two,
+3. add newly supplied evidence,
+4. reorder slides,
+5. adjust tone/length.
+
+Every probe checks change containment, source grounding, HTML-contract preservation, navigation/page integrity, readability, and trace safety. Validator PASS is necessary but not sufficient.
 
 ## Quick start: open the example deck
 
@@ -85,49 +202,55 @@ Everything here works with a text editor, a browser, and the AI tool of your cho
 
 ## How to edit a deck with AI
 
-Because the deck is one readable HTML file, you can paste it (or attach it) into your AI tool and ask for precise edits:
+Because the deck is one readable HTML file, ask for precise edits by slide ID:
 
 ```txt
 Revise only the slide with data-slide-id="problem".
 Make the headline sharper and reduce the body to three bullets.
-Do not change CSS tokens. Preserve the existing visual system.
+Do not change CSS tokens or the navigation system.
+Preserve the factual meaning from DECK_BRIEF.md.
 ```
 
-Ready-made prompts live in [prompts/](prompts/). The rules an AI (or a human) should follow when editing are defined in [docs/HTML_DECK_CONTRACT.md](docs/HTML_DECK_CONTRACT.md).
+Ready-made prompts live in [prompts/](prompts/). The structural rules are defined in [docs/HTML_DECK_CONTRACT.md](docs/HTML_DECK_CONTRACT.md).
 
-## The DECK_BRIEF.md workflow
+## What is intentionally NOT included
 
-`DECK_BRIEF.md` is the structured intermediate between "pile of materials" and "finished deck":
+This repository is a portable open-source workflow, not a hosted slide product. There is deliberately:
 
-```txt
-your materials (README, notes, report)
-  → DECK_BRIEF.md   (audience, goal, core message, key points, gaps, assumptions)
-  → review & adjust (you stay in control of the content)
-  → standalone HTML deck
-  → keep editing with your AI tool
-```
+- no web app, accounts, or authentication
+- no payment/subscription
+- no upload pipeline, database, queue, hosted model inference, or per-user hosting
+- no PDF/image/URL/repository ingestion
+- no analytics or public gallery
+- no WYSIWYG editor
+- no PPTX export today; browser print-to-PDF is supported, and compatibility outputs are deferred until real usage proves they are needed
+- no build step and no runtime dependencies
 
-The brief makes generation predictable: it records what the deck should say, what information is missing, and which assumptions were auto-filled — so nothing gets invented silently. The format is defined in [docs/DECK_BRIEF.schema.md](docs/DECK_BRIEF.schema.md), with a complete example in [examples/hackathon-demo/DECK_BRIEF.md](examples/hackathon-demo/DECK_BRIEF.md).
-
-## Validate a deck
-
-A zero-dependency Node.js script checks a deck's structure before you present or share it — unique slide IDs, required metadata, no leftover placeholders, no accidental private traces, print and keyboard support:
-
-```sh
-node tools/validate-deck.mjs examples/hackathon-demo/index.html
-```
-
-It needs only Node (no install, no dependencies) and exits non-zero on failure. See [docs/VALIDATION.md](docs/VALIDATION.md) for the full checklist and what the script does and does not cover.
+See [OPEN_SOURCE_BOUNDARY.md](OPEN_SOURCE_BOUNDARY.md) for the exact public/private boundary.
 
 ## What getslide.md is not
 
-- Not a generic AI presentation generator, and not a Canva/Gamma-style design platform.
-- Not a PPTX generator.
-- Not a ghostwriting or assignment-writing service. The kit structures and presents **materials you provide and work you did** — it does not do your work for you, and it should not be used to misrepresent authorship.
+- Not a generic AI presentation generator or a Canva/Gamma-style design platform.
+- Not a PowerPoint replacement.
+- Not a ghostwriting or assignment-writing service. It structures and presents **materials you provide and work you did**; it should not be used to misrepresent authorship.
 
-## Experimental generation harness
+## Experimental benchmark harness
 
-The v0.2 experimental harness provides a repeatable Markdown-to-brief-to-standalone Developer Demo deck-to-validation-to-benchmark workflow. It does not call a model API: use the checked-in prompts with an AI tool of your choice, then run the local tools. See [the harness specification](docs/GENERATION_HARNESS_SPEC.md), [evaluation rubric](docs/EVALUATION_RUBRIC.md), and [benchmark corpus](eval/README.md).
+The v0.2 benchmark harness remains as a repeatable Markdown-to-brief-to-Developer-Demo-deck-to-validation workflow over fictional fixtures. It does not call a model API. See [the harness specification](docs/GENERATION_HARNESS_SPEC.md), [evaluation rubric](docs/EVALUATION_RUBRIC.md), and [benchmark corpus](eval/README.md).
+
+v0.3 adds the agent-native workflow and editability evaluation on top of that foundation; it does not replace the existing benchmark semantics.
+
+## Repository self-check
+
+When changing the agent-native workflow:
+
+```sh
+node tools/test-agent-workflow.mjs
+node tools/test-generation-harness.mjs
+node tools/validate-deck.mjs examples/hackathon-demo/index.html
+```
+
+Run benchmark aggregation only when completed local benchmark runs are actually available; the checked-in historical summary is not a fresh test run.
 
 ## License
 
