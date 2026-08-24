@@ -80,6 +80,7 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 - **Decks follow the contract.** Any HTML deck you create or edit must satisfy `docs/HTML_DECK_CONTRACT.md`: single file, `section.slide` with unique `data-slide-id` and a `data-pattern` from the catalog, TOC/nav, page numbers, keyboard navigation, print CSS, `:root` design tokens.
 - **Edit slides, not the system.** When changing deck content, do not restructure CSS tokens, navigation script, or slide markup conventions unless that is the explicit task.
 - **Source grounding is mandatory.** New factual content must be traceable to the source/brief. Missing facts stay in `missing_information`; low-risk framing defaults stay visible in `auto_filled_assumptions`.
+- **Real README compression is selective, not lossy.** Preserve material lifecycle/status caveats and quantitative qualifiers; select only presentation-essential links; never treat a Markdown image reference as an actually supplied image asset.
 - **Briefs are executable contracts.** Before generating a deck, `DECK_BRIEF.md` must pass `tools/validate-brief.mjs`. A structural PASS never substitutes for semantic source/brief review.
 - **Templates may contain placeholders; examples may not.** `templates/` uses clearly-safe placeholder content. Anything under `examples/` must be complete, with zero unresolved placeholders (`TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, lorem ipsum).
 - **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update the fictional example brief and prompts that reference the fields.
@@ -137,7 +138,8 @@ Run existing benchmark aggregation only when the completed local benchmark runs 
 
 Then perform remaining manual checks in `docs/VALIDATION.md` when applicable, especially:
 
-- source/brief fidelity for every factual claim,
+- source/brief fidelity for every factual claim and material caveat,
+- presentation relevance of selected links and availability of any required image assets,
 - print preview with one slide per page,
 - projector readability and visual composition,
 - accessibility/contrast judgment,
