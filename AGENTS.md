@@ -43,7 +43,7 @@ LICENSE                         MIT
 .agents/skills/getslide/        Agent Skills / Codex project skill
 .claude/skills/getslide/        Byte-identical Claude Code project skill
 docs/
-  DECK_BRIEF.schema.md          Deck brief standard
+  DECK_BRIEF.schema.md          Deck brief standard + executable shape
   HTML_DECK_CONTRACT.md         Requirements every generated deck must satisfy
   STUDENT_DEVELOPER_PATTERNS.md Slide pattern catalog
   VALIDATION.md                 Static + real-browser validation checklist
@@ -62,6 +62,8 @@ prompts/
   review-deck-structure.md      Review prompt
 tools/
   prepare-deck.mjs              Arbitrary text/Markdown source staging
+  validate-brief.mjs            Structural/source-sufficiency brief gate
+  test-brief-validation.mjs     Brief-gate regression checks
   validate-deck.mjs             Structural validator
   evaluate-edit.mjs             Before/after edit-containment evaluator
   test-editability-eval.mjs     Positive/negative editability regressions
@@ -78,13 +80,22 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 - **Decks follow the contract.** Any HTML deck you create or edit must satisfy `docs/HTML_DECK_CONTRACT.md`: single file, `section.slide` with unique `data-slide-id` and a `data-pattern` from the catalog, TOC/nav, page numbers, keyboard navigation, print CSS, `:root` design tokens.
 - **Edit slides, not the system.** When changing deck content, do not restructure CSS tokens, navigation script, or slide markup conventions unless that is the explicit task.
 - **Source grounding is mandatory.** New factual content must be traceable to the source/brief. Missing facts stay in `missing_information`; low-risk framing defaults stay visible in `auto_filled_assumptions`.
+- **Briefs are executable contracts.** Before generating a deck, `DECK_BRIEF.md` must pass `tools/validate-brief.mjs`. A structural PASS never substitutes for semantic source/brief review.
 - **Templates may contain placeholders; examples may not.** `templates/` uses clearly-safe placeholder content. Anything under `examples/` must be complete, with zero unresolved placeholders (`TODO`, `TBD`, double curly braces, `[PLACEHOLDER]`, lorem ipsum).
 - **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update the fictional example brief and prompts that reference the fields.
 - **Record decisions.** Any scope or positioning change goes into `PRODUCT_DECISIONS.md` in the same change.
 - **Portable workflow only.** Public agent helpers may stage user-supplied text locally and assemble checked-in public resources; they may not fetch, upload, host, or call a model/provider.
-- **Mechanical gates are bounded evidence.** `evaluate-edit.mjs` proves declared structural/change containment, and `browser-qa.mjs` proves specific runtime behaviors. Neither is semantic source-fidelity or general visual-quality proof.
+- **Mechanical gates are bounded evidence.** `validate-brief.mjs` proves brief shape/mechanical sufficiency, `evaluate-edit.mjs` proves declared structural/change containment, and `browser-qa.mjs` proves specific runtime behaviors. None proves semantic source fidelity or general visual quality.
 
 ## Validation expectations
+
+After creating or changing `DECK_BRIEF.md`, run:
+
+```sh
+node tools/validate-brief.mjs <path-to-DECK_BRIEF.md>
+```
+
+`prepare-deck.mjs` also enforces this gate before creating `brief-to-deck-packet.md`.
 
 After editing or creating any deck, run the static validator on every deck you touched and confirm exit code `0`:
 
@@ -107,9 +118,12 @@ node tools/browser-qa.mjs <path-to-deck.html>
 When changing the agent/editability workflow or validation tooling, run the proportional regression set:
 
 ```sh
+node --check tools/validate-brief.mjs
+node --check tools/test-brief-validation.mjs
 node --check tools/evaluate-edit.mjs
 node --check tools/test-editability-eval.mjs
 node --check tools/browser-qa.mjs
+node tools/test-brief-validation.mjs
 node tools/test-editability-eval.mjs
 node tools/browser-qa.mjs examples/hackathon-demo/index.html
 node tools/test-agent-workflow.mjs
@@ -121,13 +135,13 @@ Run existing benchmark aggregation only when the completed local benchmark runs 
 
 Then perform remaining manual checks in `docs/VALIDATION.md` when applicable, especially:
 
-- source/brief fidelity for every changed factual claim,
+- source/brief fidelity for every factual claim,
 - print preview with one slide per page,
 - projector readability and composition,
 - the 1280×800 overflow viewport until it is automated,
 - no ghostwriting language or private traces in the diff.
 
-For claims about iterative AI editability, a validator PASS alone is insufficient. For claims about visual/browser quality, static inspection alone is insufficient.
+For claims about source grounding, a brief-validator PASS alone is insufficient. For claims about iterative AI editability, a deck-validator PASS alone is insufficient. For claims about visual/browser quality, static inspection alone is insufficient.
 
 Report what you actually checked; never convert a mechanical containment check, static validator, or single browser viewport into broader proof than it provides.
 
