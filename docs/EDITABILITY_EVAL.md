@@ -2,7 +2,7 @@
 
 A getslide deck is not proven useful merely because the first generation passes the HTML validator. The product thesis also depends on **safe iterative editing**: an agent should be able to change the requested part of the deck without corrupting unrelated content, source grounding, navigation, or layout conventions.
 
-This document defines the post-generation editability probes and the v0.3.1 executable containment gates. The tooling is provider-neutral and uses no model API.
+This document defines the post-generation editability probes and the executable containment/browser gates. The tooling is provider-neutral and uses no model API.
 
 ## Evaluation unit
 
@@ -177,7 +177,7 @@ The suite copies the fictional public example into a temporary directory and ver
 
 ## Real browser quality gate
 
-`tools/browser-qa.mjs` launches an **actually installed Chrome/Chromium** in headless mode and uses the DevTools protocol directly through Node built-ins. It does not install or download a browser.
+`tools/browser-qa.mjs` launches an **actually installed Chrome/Chromium** in headless mode and uses the DevTools protocol directly through Node built-ins. It does not install or download a browser. Browser sandboxing stays enabled, and external page network is routed through a dead local proxy during QA.
 
 ```sh
 node tools/browser-qa.mjs <deck.html>
@@ -189,14 +189,17 @@ The browser gate currently verifies:
 
 - generated TOC count and hash targets,
 - generated `current / total` page numbers,
-- no horizontal document/body/main/slide overflow at the test viewport,
-- no slide taller than one test viewport,
+- no horizontal document/body/main/slide overflow at **1440×900 and 1280×800**,
+- no slide taller than one viewport at either required size,
 - initial active-slide synchronization,
 - TOC click navigation,
 - ArrowRight/ArrowLeft, PageDown/PageUp, Home/End, and Space navigation,
+- a focused temporary input prevents all seven presentation keys from changing active slide/hash,
 - direct hash navigation.
 
-This is real runtime evidence, not static inspection. It still does not replace human review for projector readability, composition quality, print preview, or factual/source fidelity.
+The focused-input probe is injected only into the live browser DOM and removed after the check; the deck file on disk is not changed.
+
+This is real runtime evidence, not static inspection. It still does not replace human review for projector readability, composition quality, print preview/PDF rendering, accessibility judgment, or factual/source fidelity.
 
 ## Manual/browser checks
 

@@ -67,7 +67,7 @@ tools/
   validate-deck.mjs             Structural validator
   evaluate-edit.mjs             Before/after edit-containment evaluator
   test-editability-eval.mjs     Positive/negative editability regressions
-  browser-qa.mjs                Installed-Chrome real runtime QA
+  browser-qa.mjs                Installed-Chrome multi-viewport runtime QA
   test-agent-workflow.mjs       v0.3 agent-workflow regression checks
   *generation*.mjs              v0.2 benchmark helpers
 eval/                           Fictional benchmark fixtures and reports
@@ -85,7 +85,7 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 - **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update the fictional example brief and prompts that reference the fields.
 - **Record decisions.** Any scope or positioning change goes into `PRODUCT_DECISIONS.md` in the same change.
 - **Portable workflow only.** Public agent helpers may stage user-supplied text locally and assemble checked-in public resources; they may not fetch, upload, host, or call a model/provider.
-- **Mechanical gates are bounded evidence.** `validate-brief.mjs` proves brief shape/mechanical sufficiency, `evaluate-edit.mjs` proves declared structural/change containment, and `browser-qa.mjs` proves specific runtime behaviors. None proves semantic source fidelity or general visual quality.
+- **Mechanical gates are bounded evidence.** `validate-brief.mjs` proves brief shape/mechanical sufficiency, `evaluate-edit.mjs` proves declared structural/change containment, and `browser-qa.mjs` proves specified multi-viewport/runtime behaviors. None proves semantic source fidelity or general visual quality.
 
 ## Validation expectations
 
@@ -115,6 +115,8 @@ When a compatible installed Chrome/Chromium is available, run real browser QA:
 node tools/browser-qa.mjs <path-to-deck.html>
 ```
 
+The browser gate covers the required 1440×900 and 1280×800 geometric-fit viewports, navigation/hash/TOC/page-number behavior, and the focused-input typing guard. It does not prove projector aesthetics or print/PDF quality.
+
 When changing the agent/editability workflow or validation tooling, run the proportional regression set:
 
 ```sh
@@ -137,13 +139,13 @@ Then perform remaining manual checks in `docs/VALIDATION.md` when applicable, es
 
 - source/brief fidelity for every factual claim,
 - print preview with one slide per page,
-- projector readability and composition,
-- the 1280×800 overflow viewport until it is automated,
+- projector readability and visual composition,
+- accessibility/contrast judgment,
 - no ghostwriting language or private traces in the diff.
 
-For claims about source grounding, a brief-validator PASS alone is insufficient. For claims about iterative AI editability, a deck-validator PASS alone is insufficient. For claims about visual/browser quality, static inspection alone is insufficient.
+For claims about source grounding, a brief-validator PASS alone is insufficient. For claims about iterative AI editability, a deck-validator PASS alone is insufficient. For claims about visual quality, geometric browser-fit checks alone are insufficient.
 
-Report what you actually checked; never convert a mechanical containment check, static validator, or single browser viewport into broader proof than it provides.
+Report what you actually checked; never convert a mechanical containment check, static validator, or browser-runtime gate into broader proof than it provides.
 
 ## What NOT to build yet
 

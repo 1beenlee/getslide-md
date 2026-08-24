@@ -6,6 +6,12 @@ import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
+const REQUIRED_VIEWPORTS = [
+  { width: 1440, height: 900 },
+  { width: 1280, height: 800 },
+];
+const PRESENTATION_KEYS = ['ArrowRight', 'ArrowLeft', 'PageDown', 'PageUp', 'Home', 'End', ' '];
+
 const targetArg = process.argv.slice(2).find((arg) => !arg.startsWith('--'));
 if (!targetArg) failUsage();
 const target = resolve(targetArg);
@@ -39,73 +45,52 @@ try {
   await waitUntil(async () => (await evaluate("document.querySelectorAll('main .slide').length")) > 0, 5000, 'slide initialization');
   await sleep(150);
 
-  const state = await evaluate(`(() => {
+  const structure = await evaluate(`(() => {
     const slides = Array.from(document.querySelectorAll('main .slide'));
     const links = Array.from(document.querySelectorAll('#toc-list a'));
     const nums = Array.from(document.querySelectorAll('.slide-num'));
-    const main = document.querySelector('main');
     return {
-      innerWidth,
-      innerHeight,
-      documentScrollWidth: document.documentElement.scrollWidth,
-      bodyScrollWidth: document.body.scrollWidth,
-      mainClientWidth: main ? main.clientWidth : 0,
-      mainScrollWidth: main ? main.scrollWidth : 0,
       slideIds: slides.map((slide) => slide.id),
-      slideBoxes: slides.map((slide) => ({
-        id: slide.id,
-        height: slide.getBoundingClientRect().height,
-        clientWidth: slide.clientWidth,
-        scrollWidth: slide.scrollWidth
-      })),
       tocHrefs: links.map((link) => link.getAttribute('href')),
       pageNumbers: nums.map((num) => num.textContent.trim()),
       activeIds: slides.filter((slide) => slide.classList.contains('active')).map((slide) => slide.id)
     };
   })()`);
 
-  const n = state.slideIds.length;
+  const n = structure.slideIds.length;
   add(n > 0 ? 'PASS' : 'FAIL', 'Slides rendered', `${n} slide(s)`);
-  add(state.tocHrefs.length === n ? 'PASS' : 'FAIL', 'Generated TOC count', `${state.tocHrefs.length}/${n}`);
-  add(state.pageNumbers.length === n ? 'PASS' : 'FAIL', 'Generated page-number count', `${state.pageNumbers.length}/${n}`);
+  add(structure.tocHrefs.length === n ? 'PASS' : 'FAIL', 'Generated TOC count', `${structure.tocHrefs.length}/${n}`);
+  add(structure.pageNumbers.length === n ? 'PASS' : 'FAIL', 'Generated page-number count', `${structure.pageNumbers.length}/${n}`);
 
-  const expectedNums = state.slideIds.map((_, index) => `${index + 1} / ${n}`);
-  add(equalArray(expectedNums, state.pageNumbers) ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', equalArray(expectedNums, state.pageNumbers) ? expectedNums.join(', ') : state.pageNumbers.join(', '));
+  const expectedNums = structure.slideIds.map((_, index) => `${index + 1} / ${n}`);
+  add(equalArray(expectedNums, structure.pageNumbers) ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', equalArray(expectedNums, structure.pageNumbers) ? expectedNums.join(', ') : structure.pageNumbers.join(', '));
 
-  const expectedHrefs = state.slideIds.map((id) => '#' + id);
-  add(equalArray(expectedHrefs, state.tocHrefs) ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', equalArray(expectedHrefs, state.tocHrefs) ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
+  const expectedHrefs = structure.slideIds.map((id) => '#' + id);
+  add(equalArray(expectedHrefs, structure.tocHrefs) ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', equalArray(expectedHrefs, structure.tocHrefs) ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${structure.tocHrefs.join(',')}`);
 
-  const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 ||
-    state.bodyScrollWidth > state.innerWidth + 1 ||
-    state.mainScrollWidth > state.mainClientWidth + 1 ||
-    state.slideBoxes.some((slide) => slide.scrollWidth > slide.clientWidth + 1);
-  add(horizontalOverflow ? 'FAIL' : 'PASS', 'No horizontal viewport/body/slide overflow', horizontalOverflow
-    ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth] })
-    : `${state.innerWidth}px viewport`);
+  for (const viewport of REQUIRED_VIEWPORTS) await checkViewport(viewport);
+  await setViewport(REQUIRED_VIEWPORTS[0]);
 
-  const tallSlides = state.slideBoxes.filter((slide) => slide.height > state.innerHeight + 1);
-  add(tallSlides.length ? 'FAIL' : 'PASS', 'Every slide fits one viewport vertically', tallSlides.length
-    ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ')
-    : `${n} slide(s) <= ${state.innerHeight}px`);
-
-  add(state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0] ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
+  add(structure.activeIds.length === 1 && structure.activeIds[0] === structure.slideIds[0] ? 'PASS' : 'FAIL', 'Initial active slide', structure.activeIds.join(',') || 'none');
 
   if (n < 4) {
     add('FAIL', 'Runtime navigation fixture depth', 'at least four slides are required');
   } else {
     await evaluate("document.querySelectorAll('#toc-list a')[1].click(); true");
-    await expectActiveStable('TOC click navigation', state.slideIds[1]);
-    await navigateKey('ArrowRight', 'ArrowRight navigation', state.slideIds[2]);
-    await navigateKey('ArrowLeft', 'ArrowLeft navigation', state.slideIds[1]);
-    await navigateKey('PageDown', 'PageDown navigation', state.slideIds[2]);
-    await navigateKey('PageUp', 'PageUp navigation', state.slideIds[1]);
-    await navigateKey('End', 'End navigation', state.slideIds[n - 1]);
-    await navigateKey('Home', 'Home navigation', state.slideIds[0]);
-    await navigateKey(' ', 'Space navigation', state.slideIds[1]);
+    await expectActiveStable('TOC click navigation', structure.slideIds[1]);
+    await navigateKey('ArrowRight', 'ArrowRight navigation', structure.slideIds[2]);
+    await navigateKey('ArrowLeft', 'ArrowLeft navigation', structure.slideIds[1]);
+    await navigateKey('PageDown', 'PageDown navigation', structure.slideIds[2]);
+    await navigateKey('PageUp', 'PageUp navigation', structure.slideIds[1]);
+    await navigateKey('End', 'End navigation', structure.slideIds[n - 1]);
+    await navigateKey('Home', 'Home navigation', structure.slideIds[0]);
+    await navigateKey(' ', 'Space navigation', structure.slideIds[1]);
 
-    const directId = state.slideIds[3];
+    const directId = structure.slideIds[3];
     await evaluate(`location.hash = ${JSON.stringify('#' + directId)}; true`);
     await expectActiveStable('Direct hash navigation', directId);
+
+    await checkTypingTargetGuard();
   }
 
   report();
@@ -119,6 +104,108 @@ try {
   } catch (error) {
     console.warn(`WARN: could not remove temporary browser profile ${profile}: ${error.code || error.message}`);
   }
+}
+
+async function setViewport({ width, height }) {
+  await sendPage('Emulation.setDeviceMetricsOverride', {
+    width,
+    height,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await waitUntil(async () => {
+    const size = await evaluate('({ width: innerWidth, height: innerHeight })');
+    return size.width === width && size.height === height;
+  }, 3000, `${width}x${height} viewport`);
+  await sleep(100);
+}
+
+async function checkViewport(viewport) {
+  const { width, height } = viewport;
+  const label = `${width}×${height}`;
+  await setViewport(viewport);
+
+  const state = await evaluate(`(() => {
+    const slides = Array.from(document.querySelectorAll('main .slide'));
+    const main = document.querySelector('main');
+    return {
+      innerWidth,
+      innerHeight,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+      mainClientWidth: main ? main.clientWidth : 0,
+      mainScrollWidth: main ? main.scrollWidth : 0,
+      slideBoxes: slides.map((slide) => ({
+        id: slide.id,
+        height: slide.getBoundingClientRect().height,
+        clientWidth: slide.clientWidth,
+        scrollWidth: slide.scrollWidth
+      }))
+    };
+  })()`);
+
+  const exact = state.innerWidth === width && state.innerHeight === height;
+  add(exact ? 'PASS' : 'FAIL', `${label} viewport applied`, exact ? `${state.innerWidth}×${state.innerHeight}` : `actual=${state.innerWidth}×${state.innerHeight}`);
+
+  const overflowingSlides = state.slideBoxes.filter((slide) => slide.scrollWidth > slide.clientWidth + 1);
+  const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 ||
+    state.bodyScrollWidth > state.innerWidth + 1 ||
+    state.mainScrollWidth > state.mainClientWidth + 1 ||
+    overflowingSlides.length > 0;
+  add(horizontalOverflow ? 'FAIL' : 'PASS', `${label} no horizontal viewport/body/slide overflow`, horizontalOverflow
+    ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth], slides: overflowingSlides.map((slide) => slide.id) })
+    : `${state.slideBoxes.length} slide(s)`);
+
+  const tallSlides = state.slideBoxes.filter((slide) => slide.height > state.innerHeight + 1);
+  add(tallSlides.length ? 'FAIL' : 'PASS', `${label} every slide fits one viewport vertically`, tallSlides.length
+    ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ')
+    : `${state.slideBoxes.length} slide(s) <= ${state.innerHeight}px`);
+}
+
+async function checkTypingTargetGuard() {
+  const baseline = await readActiveState();
+  const injected = await evaluate(`(() => {
+    const active = document.querySelector('main .slide.active');
+    if (!active) return false;
+    const input = document.createElement('input');
+    input.id = 'getslide-qa-typing-target';
+    input.setAttribute('aria-label', 'getslide browser QA temporary typing target');
+    input.style.position = 'fixed';
+    input.style.left = '-10000px';
+    input.style.top = '0';
+    active.appendChild(input);
+    input.focus();
+    return document.activeElement === input;
+  })()`);
+
+  if (!injected) {
+    add('FAIL', 'Typing-target guard setup', 'could not focus temporary input');
+    return;
+  }
+  add('PASS', 'Typing-target guard setup', `focused temporary input on ${baseline.active}`);
+
+  const failed = [];
+  for (const key of PRESENTATION_KEYS) {
+    await dispatchKey(key);
+    await sleep(150);
+    const state = await evaluate(`(() => ({
+      active: document.querySelector('main .slide.active')?.id || '',
+      hash: location.hash,
+      focused: document.activeElement?.id || ''
+    }))()`);
+    if (state.active !== baseline.active || state.hash !== baseline.hash || state.focused !== 'getslide-qa-typing-target') {
+      failed.push(`${displayKey(key)}:active=${state.active},hash=${state.hash},focus=${state.focused}`);
+    }
+  }
+
+  add(failed.length ? 'FAIL' : 'PASS', 'Typing-target guard blocks presentation navigation', failed.length ? failed.join('; ') : `${PRESENTATION_KEYS.length}/${PRESENTATION_KEYS.length} keys contained while input focused`);
+
+  await evaluate(`(() => {
+    const input = document.getElementById('getslide-qa-typing-target');
+    if (input) input.remove();
+    document.body.focus?.();
+    return !document.getElementById('getslide-qa-typing-target');
+  })()`);
 }
 
 function findBrowser() {
@@ -269,7 +356,11 @@ async function evaluate(expression) {
   return response.result?.value;
 }
 
-async function navigateKey(key, name, expectedId) {
+async function readActiveState() {
+  return evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
+}
+
+async function dispatchKey(key) {
   const codes = {
     ArrowRight: ['ArrowRight', 39], ArrowLeft: ['ArrowLeft', 37],
     PageDown: ['PageDown', 34], PageUp: ['PageUp', 33],
@@ -280,6 +371,10 @@ async function navigateKey(key, name, expectedId) {
   if (key === ' ') common.text = ' ';
   await sendPage('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
   await sendPage('Input.dispatchKeyEvent', { type: 'keyUp', ...common, text: undefined });
+}
+
+async function navigateKey(key, name, expectedId) {
+  await dispatchKey(key);
   await expectActiveStable(name, expectedId);
 }
 
@@ -288,10 +383,10 @@ async function expectActiveStable(name, id) {
   const deadline = Date.now() + 5000;
   let last = { active: '', hash: '' };
   while (Date.now() < deadline) {
-    last = await evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
+    last = await readActiveState();
     if (last.active === id && last.hash === expectedHash) {
       await sleep(350);
-      const stable = await evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
+      const stable = await readActiveState();
       if (stable.active === id && stable.hash === expectedHash) {
         add('PASS', name, `active=${stable.active} hash=${stable.hash} expected=${id}`);
         return;
@@ -344,6 +439,7 @@ function waitForExit(child, timeoutMs) {
   });
 }
 
+function displayKey(key) { return key === ' ' ? 'Space' : key; }
 function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
 function equalArray(a, b) { return a.length === b.length && a.every((value, index) => value === b[index]); }
 function failUsage() { console.error('Usage: node tools/browser-qa.mjs <deck.html>'); process.exit(1); }
