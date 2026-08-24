@@ -135,12 +135,20 @@ try {
   add('FAIL', 'Browser QA runtime', error instanceof Error ? error.message : String(error));
   finish();
 } finally {
+  if (cdp && browser && browser.exitCode === null) {
+    try { await cdp.send('Browser.close'); } catch {}
+    await waitForProcessExit(browser, 2000);
+  }
   if (cdp) cdp.close();
   if (browser && browser.exitCode === null) {
     browser.kill('SIGKILL');
     await waitForProcessExit(browser, 2000);
   }
-  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  } catch (error) {
+    console.warn(`WARN: could not remove temporary browser profile ${profile}: ${error.code || error.message}`);
+  }
 }
 
 function findBrowser() {
