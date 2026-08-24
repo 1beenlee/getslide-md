@@ -33,8 +33,9 @@ Last updated: 2026-08-25
 | Agent-native source staging | v0.3 adds `tools/prepare-deck.mjs` so one arbitrary text/Markdown source can be staged into the same brief/deck packet flow without benchmark metadata or a model/network call. |
 | Editability evaluation | v0.3 treats post-generation targeted editing as a first-class quality axis. Validator PASS is necessary but insufficient; source grounding, change containment, navigation integrity, and visual/manual QA are evaluated separately. |
 | Executable edit containment | v0.3.1 adds `tools/evaluate-edit.mjs` with explicit `targeted`, `split`, `reorder`, and `compression` policies. It invokes the deck validator and blocks undeclared slide/system changes, `:root` drift, and navigation/script drift. This is mechanical containment evidence, **not semantic factual proof**. |
-| Real browser QA | v0.3.1 adds `tools/browser-qa.mjs`, which uses an already installed Chrome/Chromium through the DevTools protocol and Node built-ins to check actual `file://` runtime navigation, TOC/hash/page-number synchronization, and one canonical viewport overflow gate. No Puppeteer/Playwright or browser download is added. |
+| Real browser QA | v0.3.1 adds `tools/browser-qa.mjs`, which uses an already installed Chrome/Chromium through the DevTools protocol and Node built-ins to check actual `file://` runtime navigation, TOC/hash/page-number synchronization, and geometric overflow. No Puppeteer/Playwright or browser download is added. |
 | Executable brief gate | v0.3.2 validates the documented `DECK_BRIEF.md` top-level scalar/list subset before generation. Required fields, confidence, optional field shapes, duplicate/malformed syntax, and the mechanical `high`-confidence/no-unresolved-gap invariant are checked; invalid briefs cannot produce a generation packet. This is structural evidence, **not semantic source-fidelity proof**. |
+| Browser QA depth | v0.3.3 makes both required geometric-fit viewports (**1440×900 and 1280×800**) executable and runtime-tests the focused-input typing guard for all presentation keys. Browser sandboxing and dead-proxy page-network isolation remain enabled. This proves specified runtime/geometric behavior, **not projector aesthetics or print/PDF quality**. |
 
 ## Deferred
 
@@ -49,7 +50,7 @@ Planned or plausible, but intentionally not in the current open-source milestone
 - Real-user or public-project evaluation artifacts in this public repo; real usage evidence must be collected without committing user material.
 - PPTX or Google Slides compatibility output, unless user validation shows that browser/PDF delivery is insufficient.
 - Automated semantic source-fidelity proof; factual/meaning review remains model/human review rather than a deterministic string/diff claim.
-- Full browser automation of print preview, projector readability, composition quality, and all responsive viewport sizes.
+- Automated projector/composition scoring and full print/PDF rendering evidence.
 
 ## Not now
 
@@ -89,4 +90,4 @@ A future hosted wrapper should sell convenience and operational quality, not acc
 5. Does `DECK_BRIEF.md` need an explicit schema-version field before external tools start producing briefs?
 6. How much of the pattern catalog should remain public as it grows: all of it or a stable public core plus specialized packs?
 7. If agent-native usage is strong but setup friction blocks non-agent users, what is the thinnest hosted wrapper that removes that friction without becoming a generic slide SaaS?
-8. After mechanical containment, executable brief validation, and one canonical browser viewport are reliable, which next quality gate delivers more value: semantic source-review automation, 1280×800 responsive QA, or print/PDF rendering evidence?
+8. With deterministic brief, edit-containment, and required browser-runtime gates now covered, should the next investment prioritize **real-world Agent trials**, **semantic source-review assistance**, or **print/export evidence**?
