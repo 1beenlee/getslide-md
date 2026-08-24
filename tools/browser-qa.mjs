@@ -88,39 +88,44 @@ try {
   const hrefsMatch = equalArray(expectedHrefs, state.tocHrefs);
   add(hrefsMatch ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', hrefsMatch ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
 
-  const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 || state.bodyScrollWidth > state.innerWidth + 1 || state.mainScrollWidth > state.mainClientWidth + 1 || state.slideBoxes.some((slide) => slide.scrollWidth > slide.clientWidth + 1);
-  add(horizontalOverflow ? 'FAIL' : 'PASS', 'No horizontal viewport/body/slide overflow', horizontalOverflow ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth], slides: state.slideBoxes.filter((slide) => slide.scrollWidth > slide.clientWidth + 1) }) : `${state.innerWidth}px viewport`);
+  const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 ||
+    state.bodyScrollWidth > state.innerWidth + 1 ||
+    state.mainScrollWidth > state.mainClientWidth + 1 ||
+    state.slideBoxes.some((slide) => slide.scrollWidth > slide.clientWidth + 1);
+  add(horizontalOverflow ? 'FAIL' : 'PASS', 'No horizontal viewport/body/slide overflow', horizontalOverflow
+    ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth], slides: state.slideBoxes.filter((slide) => slide.scrollWidth > slide.clientWidth + 1) })
+    : `${state.innerWidth}px viewport`);
 
   const tallSlides = state.slideBoxes.filter((slide) => slide.height > state.innerHeight + 1);
-  add(tallSlides.length ? 'FAIL' : 'PASS', 'Every slide fits one viewport vertically', tallSlides.length ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ') : `${n} slide(s) <= ${state.innerHeight}px`);
+  add(tallSlides.length ? 'FAIL' : 'PASS', 'Every slide fits one viewport vertically', tallSlides.length
+    ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ')
+    : `${n} slide(s) <= ${state.innerHeight}px`);
 
   const initialActive = state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0];
   add(initialActive ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
 
   if (n >= 4) {
     await evaluate("document.querySelectorAll('#toc-list a')[1].click(); true");
-    await sleep(180);
-    await expectActive('TOC click navigation', state.slideIds[1]);
+    await expectActiveStable('TOC click navigation', state.slideIds[1]);
 
     await key('ArrowRight');
-    await expectActive('ArrowRight navigation', state.slideIds[2]);
+    await expectActiveStable('ArrowRight navigation', state.slideIds[2]);
     await key('ArrowLeft');
-    await expectActive('ArrowLeft navigation', state.slideIds[1]);
+    await expectActiveStable('ArrowLeft navigation', state.slideIds[1]);
     await key('PageDown');
-    await expectActive('PageDown navigation', state.slideIds[2]);
+    await expectActiveStable('PageDown navigation', state.slideIds[2]);
     await key('PageUp');
-    await expectActive('PageUp navigation', state.slideIds[1]);
+    await expectActiveStable('PageUp navigation', state.slideIds[1]);
     await key('End');
-    await expectActive('End navigation', state.slideIds[n - 1]);
+    await expectActiveStable('End navigation', state.slideIds[n - 1]);
     await key('Home');
-    await expectActive('Home navigation', state.slideIds[0]);
+    await expectActiveStable('Home navigation', state.slideIds[0]);
     await key(' ');
-    await expectActive('Space navigation', state.slideIds[1]);
+    await expectActiveStable('Space navigation', state.slideIds[1]);
 
     const directId = state.slideIds[3];
     await evaluate(`location.hash = ${JSON.stringify('#' + directId)}; true`);
-    await sleep(220);
-    await expectActive('Direct hash navigation', directId);
+    await expectActiveStable('Direct hash navigation', directId);
   } else {
     add('FAIL', 'Runtime navigation fixture depth', 'at least four slides are required for browser navigation QA');
   }
@@ -310,13 +315,32 @@ async function key(value) {
   if (value === ' ') common.text = ' ';
   await pageSend('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
   await pageSend('Input.dispatchKeyEvent', { type: 'keyUp', ...common, text: undefined });
-  await sleep(200);
 }
 
-async function expectActive(name, id) {
-  const state = await evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
-  const pass = state.active === id && state.hash === '#' + id;
-  add(pass ? 'PASS' : 'FAIL', name, `active=${state.active} hash=${state.hash} expected=${id}`);
+async function readActiveState() {
+  return evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
+}
+
+async function expectActiveStable(name, id) {
+  const expectedHash = '#' + id;
+  const deadline = Date.now() + 5000;
+  let last = { active: '', hash: '' };
+
+  while (Date.now() < deadline) {
+    last = await readActiveState();
+    if (last.active === id && last.hash === expectedHash) {
+      await sleep(350);
+      const stable = await readActiveState();
+      if (stable.active === id && stable.hash === expectedHash) {
+        add('PASS', name, `active=${stable.active} hash=${stable.hash} expected=${id}`);
+        return;
+      }
+      last = stable;
+    }
+    await sleep(100);
+  }
+
+  add('FAIL', name, `active=${last.active} hash=${last.hash} expected=${id} (not stable within 5s)`);
 }
 
 function waitUntil(check, timeoutMs, name) {
