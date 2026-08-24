@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// getslide.md — dependency-free real-browser QA via an installed Chrome/Chromium + CDP.
+// getslide.md — zero-dependency real-browser QA with an installed Chrome/Chromium.
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -7,27 +7,17 @@ import { pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
 const targetArg = process.argv.slice(2).find((arg) => !arg.startsWith('--'));
-if (!targetArg) {
-  console.error('Usage: node tools/browser-qa.mjs <deck.html>');
-  process.exit(1);
-}
-
+if (!targetArg) failUsage();
 const target = resolve(targetArg);
-if (!existsSync(target)) {
-  console.error('Deck not found: ' + target);
-  process.exit(1);
-}
-if (typeof WebSocket === 'undefined') {
-  console.error('Built-in WebSocket is unavailable. Browser QA requires a modern Node runtime (Node 22+ recommended).');
-  process.exit(1);
-}
+if (!existsSync(target)) exitError('Deck not found: ' + target);
+if (typeof WebSocket === 'undefined') exitError('Built-in WebSocket is unavailable. Node 22+ is recommended.');
 
 const results = [];
 const add = (status, name, detail = '') => results.push({ status, name, detail });
 const profile = mkdtempSync(join(tmpdir(), 'getslide-browser-qa-'));
 let browser = null;
 let cdp = null;
-let pageSessionId = null;
+let sessionId = null;
 
 try {
   const executable = findBrowser();
@@ -35,17 +25,16 @@ try {
 
   const launched = await launchBrowser(executable, pathToFileURL(target).href, profile);
   browser = launched.process;
-  add('PASS', 'Headless browser launched', launched.browserWsUrl);
+  add('PASS', 'Headless browser launched', launched.wsUrl);
 
-  cdp = await connectCdp(launched.browserWsUrl);
-  const pageTarget = await findPageTarget(cdp, target);
-  const attached = await cdp.send('Target.attachToTarget', { targetId: pageTarget.targetId, flatten: true });
-  pageSessionId = attached.sessionId;
-  if (!pageSessionId) throw new Error('Chrome did not return a page CDP session ID');
-  add('PASS', 'Page target attached', pageTarget.url);
+  cdp = await connectCdp(launched.wsUrl);
+  const page = await findPageTarget(cdp, target);
+  sessionId = (await cdp.send('Target.attachToTarget', { targetId: page.targetId, flatten: true })).sessionId;
+  if (!sessionId) throw new Error('Chrome did not return a page CDP session ID');
+  add('PASS', 'Page target attached', page.url);
 
-  await pageSend('Runtime.enable');
-  await pageSend('Page.enable');
+  await sendPage('Runtime.enable');
+  await sendPage('Page.enable');
   await waitUntil(async () => (await evaluate('document.readyState')) === 'complete', 5000, 'page load');
   await waitUntil(async () => (await evaluate("document.querySelectorAll('main .slide').length")) > 0, 5000, 'slide initialization');
   await sleep(150);
@@ -81,19 +70,17 @@ try {
   add(state.pageNumbers.length === n ? 'PASS' : 'FAIL', 'Generated page-number count', `${state.pageNumbers.length}/${n}`);
 
   const expectedNums = state.slideIds.map((_, index) => `${index + 1} / ${n}`);
-  const numsMatch = equalArray(expectedNums, state.pageNumbers);
-  add(numsMatch ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', numsMatch ? expectedNums.join(', ') : state.pageNumbers.join(', '));
+  add(equalArray(expectedNums, state.pageNumbers) ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', equalArray(expectedNums, state.pageNumbers) ? expectedNums.join(', ') : state.pageNumbers.join(', '));
 
   const expectedHrefs = state.slideIds.map((id) => '#' + id);
-  const hrefsMatch = equalArray(expectedHrefs, state.tocHrefs);
-  add(hrefsMatch ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', hrefsMatch ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
+  add(equalArray(expectedHrefs, state.tocHrefs) ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', equalArray(expectedHrefs, state.tocHrefs) ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
 
   const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 ||
     state.bodyScrollWidth > state.innerWidth + 1 ||
     state.mainScrollWidth > state.mainClientWidth + 1 ||
     state.slideBoxes.some((slide) => slide.scrollWidth > slide.clientWidth + 1);
   add(horizontalOverflow ? 'FAIL' : 'PASS', 'No horizontal viewport/body/slide overflow', horizontalOverflow
-    ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth], slides: state.slideBoxes.filter((slide) => slide.scrollWidth > slide.clientWidth + 1) })
+    ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth] })
     : `${state.innerWidth}px viewport`);
 
   const tallSlides = state.slideBoxes.filter((slide) => slide.height > state.innerHeight + 1);
@@ -101,49 +88,32 @@ try {
     ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ')
     : `${n} slide(s) <= ${state.innerHeight}px`);
 
-  const initialActive = state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0];
-  add(initialActive ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
+  add(state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0] ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
 
-  if (n >= 4) {
+  if (n < 4) {
+    add('FAIL', 'Runtime navigation fixture depth', 'at least four slides are required');
+  } else {
     await evaluate("document.querySelectorAll('#toc-list a')[1].click(); true");
     await expectActiveStable('TOC click navigation', state.slideIds[1]);
-
-    await key('ArrowRight');
-    await expectActiveStable('ArrowRight navigation', state.slideIds[2]);
-    await key('ArrowLeft');
-    await expectActiveStable('ArrowLeft navigation', state.slideIds[1]);
-    await key('PageDown');
-    await expectActiveStable('PageDown navigation', state.slideIds[2]);
-    await key('PageUp');
-    await expectActiveStable('PageUp navigation', state.slideIds[1]);
-    await key('End');
-    await expectActiveStable('End navigation', state.slideIds[n - 1]);
-    await key('Home');
-    await expectActiveStable('Home navigation', state.slideIds[0]);
-    await key(' ');
-    await expectActiveStable('Space navigation', state.slideIds[1]);
+    await navigateKey('ArrowRight', 'ArrowRight navigation', state.slideIds[2]);
+    await navigateKey('ArrowLeft', 'ArrowLeft navigation', state.slideIds[1]);
+    await navigateKey('PageDown', 'PageDown navigation', state.slideIds[2]);
+    await navigateKey('PageUp', 'PageUp navigation', state.slideIds[1]);
+    await navigateKey('End', 'End navigation', state.slideIds[n - 1]);
+    await navigateKey('Home', 'Home navigation', state.slideIds[0]);
+    await navigateKey(' ', 'Space navigation', state.slideIds[1]);
 
     const directId = state.slideIds[3];
     await evaluate(`location.hash = ${JSON.stringify('#' + directId)}; true`);
     await expectActiveStable('Direct hash navigation', directId);
-  } else {
-    add('FAIL', 'Runtime navigation fixture depth', 'at least four slides are required for browser navigation QA');
   }
 
-  finish();
+  report();
 } catch (error) {
   add('FAIL', 'Browser QA runtime', error instanceof Error ? error.message : String(error));
-  finish();
+  report();
 } finally {
-  if (cdp && browser && browser.exitCode === null) {
-    try { await cdp.send('Browser.close'); } catch {}
-    await waitForProcessExit(browser, 2000);
-  }
-  if (cdp) cdp.close();
-  if (browser && browser.exitCode === null) {
-    browser.kill('SIGKILL');
-    await waitForProcessExit(browser, 2000);
-  }
+  await shutdownBrowser();
   try {
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   } catch (error) {
@@ -179,11 +149,12 @@ function launchBrowser(executable, url, userDataDir) {
       '--headless=new',
       '--disable-gpu',
       '--disable-dev-shm-usage',
-      '--no-sandbox',
+      '--disable-background-networking',
       '--no-first-run',
       '--no-default-browser-check',
       '--remote-allow-origins=*',
       '--remote-debugging-port=0',
+      '--proxy-server=http://127.0.0.1:9',
       '--window-size=1440,900',
       '--user-data-dir=' + userDataDir,
       url
@@ -205,7 +176,7 @@ function launchBrowser(executable, url, userDataDir) {
       if (match && !settled) {
         settled = true;
         clearTimeout(timeout);
-        resolvePromise({ process: child, browserWsUrl: match[1] });
+        resolvePromise({ process: child, wsUrl: match[1] });
       }
     });
     child.once('exit', (code) => {
@@ -231,19 +202,12 @@ function connectCdp(url) {
     const pending = new Map();
     let nextId = 1;
     let settled = false;
-
     const timeout = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      rejectPromise(new Error('Timed out connecting to browser DevTools websocket'));
+      if (!settled) rejectPromise(new Error('Timed out connecting to browser DevTools websocket'));
     }, 5000);
 
     ws.addEventListener('message', async (event) => {
-      let text;
-      if (typeof event.data === 'string') text = event.data;
-      else if (event.data instanceof ArrayBuffer) text = Buffer.from(event.data).toString('utf8');
-      else if (event.data && typeof event.data.text === 'function') text = await event.data.text();
-      else text = String(event.data);
+      const text = typeof event.data === 'string' ? event.data : event.data instanceof ArrayBuffer ? Buffer.from(event.data).toString('utf8') : await event.data.text();
       const message = JSON.parse(text);
       if (!message.id) return;
       const item = pending.get(message.id);
@@ -252,37 +216,32 @@ function connectCdp(url) {
       if (message.error) item.reject(new Error(`${message.error.code}: ${message.error.message}`));
       else item.resolve(message.result || {});
     });
-
     ws.addEventListener('close', () => {
       for (const item of pending.values()) item.reject(new Error('CDP websocket closed'));
       pending.clear();
     });
-
     ws.addEventListener('open', () => {
-      if (settled) return;
       settled = true;
       clearTimeout(timeout);
       resolvePromise({
-        send(method, params = {}, sessionId = null) {
+        send(method, params = {}, targetSessionId = null) {
           const id = nextId++;
           return new Promise((resolveSend, rejectSend) => {
             pending.set(id, { resolve: resolveSend, reject: rejectSend });
             const message = { id, method, params };
-            if (sessionId) message.sessionId = sessionId;
+            if (targetSessionId) message.sessionId = targetSessionId;
             ws.send(JSON.stringify(message));
           });
         },
-        close() {
-          try { ws.close(); } catch {}
-        }
+        close() { try { ws.close(); } catch {} }
       });
     }, { once: true });
-
     ws.addEventListener('error', () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      rejectPromise(new Error('Failed to connect to browser DevTools websocket'));
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        rejectPromise(new Error('Failed to connect to browser DevTools websocket'));
+      }
     }, { once: true });
   });
 }
@@ -290,8 +249,7 @@ function connectCdp(url) {
 async function findPageTarget(client, targetPath) {
   const expected = pathToFileURL(targetPath).href.split('#')[0];
   for (let attempt = 0; attempt < 50; attempt++) {
-    const response = await client.send('Target.getTargets');
-    const targets = response.targetInfos || [];
+    const targets = (await client.send('Target.getTargets')).targetInfos || [];
     const exact = targets.find((item) => item.type === 'page' && item.url && item.url.split('#')[0] === expected);
     if (exact) return exact;
     const fallback = targets.find((item) => item.type === 'page' && item.url?.startsWith('file://'));
@@ -301,47 +259,39 @@ async function findPageTarget(client, targetPath) {
   throw new Error('Could not find a page target for ' + basename(targetPath));
 }
 
-function pageSend(method, params = {}) {
-  return cdp.send(method, params, pageSessionId);
+function sendPage(method, params = {}) {
+  return cdp.send(method, params, sessionId);
 }
 
 async function evaluate(expression) {
-  const response = await pageSend('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  const response = await sendPage('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
   if (response.exceptionDetails) throw new Error('Runtime.evaluate failed: ' + JSON.stringify(response.exceptionDetails));
   return response.result?.value;
 }
 
-async function key(value) {
+async function navigateKey(key, name, expectedId) {
   const codes = {
-    ArrowRight: ['ArrowRight', 39],
-    ArrowLeft: ['ArrowLeft', 37],
-    PageDown: ['PageDown', 34],
-    PageUp: ['PageUp', 33],
-    Home: ['Home', 36],
-    End: ['End', 35],
-    ' ': ['Space', 32]
+    ArrowRight: ['ArrowRight', 39], ArrowLeft: ['ArrowLeft', 37],
+    PageDown: ['PageDown', 34], PageUp: ['PageUp', 33],
+    Home: ['Home', 36], End: ['End', 35], ' ': ['Space', 32]
   };
-  const [code, keyCode] = codes[value];
-  const common = { key: value, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
-  if (value === ' ') common.text = ' ';
-  await pageSend('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
-  await pageSend('Input.dispatchKeyEvent', { type: 'keyUp', ...common, text: undefined });
-}
-
-async function readActiveState() {
-  return evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
+  const [code, keyCode] = codes[key];
+  const common = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
+  if (key === ' ') common.text = ' ';
+  await sendPage('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
+  await sendPage('Input.dispatchKeyEvent', { type: 'keyUp', ...common, text: undefined });
+  await expectActiveStable(name, expectedId);
 }
 
 async function expectActiveStable(name, id) {
   const expectedHash = '#' + id;
   const deadline = Date.now() + 5000;
   let last = { active: '', hash: '' };
-
   while (Date.now() < deadline) {
-    last = await readActiveState();
+    last = await evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
     if (last.active === id && last.hash === expectedHash) {
       await sleep(350);
-      const stable = await readActiveState();
+      const stable = await evaluate(`(() => ({ active: document.querySelector('main .slide.active')?.id || '', hash: location.hash }))()`);
       if (stable.active === id && stable.hash === expectedHash) {
         add('PASS', name, `active=${stable.active} hash=${stable.hash} expected=${id}`);
         return;
@@ -350,8 +300,19 @@ async function expectActiveStable(name, id) {
     }
     await sleep(100);
   }
-
   add('FAIL', name, `active=${last.active} hash=${last.hash} expected=${id} (not stable within 5s)`);
+}
+
+async function shutdownBrowser() {
+  if (cdp && browser && browser.exitCode === null) {
+    try { await cdp.send('Browser.close'); } catch {}
+    await waitForExit(browser, 2000);
+  }
+  if (cdp) cdp.close();
+  if (browser && browser.exitCode === null) {
+    browser.kill('SIGKILL');
+    await waitForExit(browser, 2000);
+  }
 }
 
 function waitUntil(check, timeoutMs, name) {
@@ -362,38 +323,33 @@ function waitUntil(check, timeoutMs, name) {
         if (await check()) return resolvePromise();
         if (Date.now() - started >= timeoutMs) return rejectPromise(new Error('Timed out waiting for ' + name));
         setTimeout(poll, 100);
-      } catch (error) {
-        rejectPromise(error);
-      }
+      } catch (error) { rejectPromise(error); }
     };
     poll();
   });
 }
 
-function waitForProcessExit(child, timeoutMs) {
+function waitForExit(child, timeoutMs) {
   if (child.exitCode !== null) return Promise.resolve();
   return new Promise((resolvePromise) => {
-    let settled = false;
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       resolvePromise();
     };
-    const timeout = setTimeout(done, timeoutMs);
-    child.once('exit', done);
+    const timer = setTimeout(finish, timeoutMs);
+    child.once('exit', finish);
   });
 }
 
-function sleep(ms) {
-  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
-}
+function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
+function equalArray(a, b) { return a.length === b.length && a.every((value, index) => value === b[index]); }
+function failUsage() { console.error('Usage: node tools/browser-qa.mjs <deck.html>'); process.exit(1); }
+function exitError(message) { console.error(message); process.exit(1); }
 
-function equalArray(a, b) {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function finish() {
+function report() {
   const icon = { PASS: '[PASS]', FAIL: '[FAIL]' };
   console.log(`getslide.md browser QA — ${basename(target)}\n`);
   for (const result of results) console.log(`${icon[result.status]} ${result.name}${result.detail ? ' — ' + result.detail : ''}`);
