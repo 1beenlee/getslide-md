@@ -7,12 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
-const positional = args.filter((arg) => !arg.startsWith('--') && !isOptionValue(arg));
-const beforeArg = positional[0];
-const afterArg = positional[1];
+const beforeArg = args[0];
+const afterArg = args[1];
 const mode = option('--mode');
 
-if (!beforeArg || !afterArg || !['targeted', 'split', 'reorder', 'compression'].includes(mode)) {
+if (!beforeArg || !afterArg || beforeArg.startsWith('--') || afterArg.startsWith('--') || !['targeted', 'split', 'reorder', 'compression'].includes(mode)) {
   usage();
   process.exit(1);
 }
@@ -53,12 +52,6 @@ function option(name) {
   return args[index + 1] && !args[index + 1].startsWith('--') ? args[index + 1] : null;
 }
 
-function isOptionValue(value) {
-  const index = args.indexOf(value);
-  if (index <= 0) return false;
-  return ['--mode', '--targets', '--replace', '--order', '--allow-remove'].includes(args[index - 1]);
-}
-
 function csv(value) {
   if (!value) return [];
   return value.split(',').map((item) => item.trim()).filter(Boolean);
@@ -81,21 +74,21 @@ function parseDeck(raw) {
     const open = html.match(/^<section\b[^>]*>/i)?.[0] || '';
     const id = attr(open, 'data-slide-id');
     const pattern = attr(open, 'data-pattern');
-    slides.push({ id, pattern, html, start: match.index, end: match.index + html.length });
+    slides.push({ id, pattern, html });
   }
   const ids = slides.map((slide) => slide.id);
   const map = new Map(slides.map((slide) => [slide.id, slide]));
   const roots = [...raw.matchAll(/:root\s*\{[^}]*\}/gi)].map((entry) => entry[0]);
   const scripts = [...raw.matchAll(/<script\b[^>]*>[\s\S]*?<\/script>/gi)].map((entry) => entry[0]);
   const shell = raw
-    .replace(slideRe, '<GETSLIDE_SLIDE/>')
+    .replace(/<section\b[^>]*\bclass\s*=\s*(["'])[^"']*\bslide\b[^"']*\1[^>]*>[\s\S]*?<\/section>/gi, '<GETSLIDE_SLIDE/>')
     .replace(/(?:<GETSLIDE_SLIDE\/>\s*)+/g, '<GETSLIDE_SLIDES/>');
-  return { raw, slides, ids, map, roots, scripts, shell };
+  return { slides, ids, map, roots, scripts, shell };
 }
 
 function attr(tag, name) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = tag.match(new RegExp('\\b' + escaped + '\\s*=\\s*(["\\\'])(.*?)\\1', 'i'));
+  const match = tag.match(new RegExp("\\b" + escaped + "\\s*=\\s*([\"'])(.*?)\\1", 'i'));
   return match ? match[2].trim() : '';
 }
 
@@ -112,16 +105,20 @@ function runValidator(path) {
 }
 
 function compareSystem(beforeDeck, afterDeck) {
-  add(equalArray(beforeDeck.roots, afterDeck.roots) ? 'PASS' : 'FAIL', ':root design tokens unchanged', equalArray(beforeDeck.roots, afterDeck.roots) ? `${beforeDeck.roots.length} block(s)` : 'design-token block drift detected');
-  add(equalArray(beforeDeck.scripts, afterDeck.scripts) ? 'PASS' : 'FAIL', 'Script/navigation system unchanged', equalArray(beforeDeck.scripts, afterDeck.scripts) ? `${beforeDeck.scripts.length} script block(s)` : 'script block drift detected');
-  add(beforeDeck.shell === afterDeck.shell ? 'PASS' : 'FAIL', 'Non-slide system shell unchanged', beforeDeck.shell === afterDeck.shell ? 'no drift outside slide sections' : 'markup/style/system drift outside slide sections detected');
+  const rootsStable = equalArray(beforeDeck.roots, afterDeck.roots);
+  const scriptsStable = equalArray(beforeDeck.scripts, afterDeck.scripts);
+  const shellStable = beforeDeck.shell === afterDeck.shell;
+  add(rootsStable ? 'PASS' : 'FAIL', ':root design tokens unchanged', rootsStable ? `${beforeDeck.roots.length} block(s)` : 'design-token block drift detected');
+  add(scriptsStable ? 'PASS' : 'FAIL', 'Script/navigation system unchanged', scriptsStable ? `${beforeDeck.scripts.length} script block(s)` : 'script block drift detected');
+  add(shellStable ? 'PASS' : 'FAIL', 'Non-slide system shell unchanged', shellStable ? 'no drift outside slide sections' : 'markup/style/system drift outside slide sections detected');
 }
 
 function evaluateTargeted(beforeDeck, afterDeck) {
   const targets = new Set(csv(option('--targets')));
   requireNonEmpty(targets, '--targets');
   validateDeclaredIds(beforeDeck, targets, 'target');
-  add(equalArray(beforeDeck.ids, afterDeck.ids) ? 'PASS' : 'FAIL', 'Targeted edit preserves slide set/order', equalArray(beforeDeck.ids, afterDeck.ids) ? `${afterDeck.ids.length} slide(s)` : `before=${beforeDeck.ids.join(',')} after=${afterDeck.ids.join(',')}`);
+  const topologyStable = equalArray(beforeDeck.ids, afterDeck.ids);
+  add(topologyStable ? 'PASS' : 'FAIL', 'Targeted edit preserves slide set/order', topologyStable ? `${afterDeck.ids.length} slide(s)` : `before=${beforeDeck.ids.join(',')} after=${afterDeck.ids.join(',')}`);
   compareUntouched(beforeDeck, afterDeck, targets, 'Targeted edit containment');
 }
 
@@ -145,9 +142,9 @@ function evaluateSplit(beforeDeck, afterDeck) {
     if (id === target) expected.push(...replacements);
     else expected.push(id);
   }
-  add(equalArray(expected, afterDeck.ids) ? 'PASS' : 'FAIL', 'Split changes only declared slide topology', equalArray(expected, afterDeck.ids) ? expected.join(',') : `expected=${expected.join(',')} after=${afterDeck.ids.join(',')}`);
-  const allowed = new Set([target, ...replacements]);
-  compareUntouched(beforeDeck, afterDeck, allowed, 'Split edit containment');
+  const topologyMatches = equalArray(expected, afterDeck.ids);
+  add(topologyMatches ? 'PASS' : 'FAIL', 'Split changes only declared slide topology', topologyMatches ? expected.join(',') : `expected=${expected.join(',')} after=${afterDeck.ids.join(',')}`);
+  compareUntouched(beforeDeck, afterDeck, new Set([target, ...replacements]), 'Split edit containment');
 }
 
 function evaluateReorder(beforeDeck, afterDeck) {
@@ -156,8 +153,10 @@ function evaluateReorder(beforeDeck, afterDeck) {
     add('FAIL', 'Reorder declaration valid', 'missing --order');
     return;
   }
-  add(sameSet(beforeDeck.ids, expected) ? 'PASS' : 'FAIL', 'Reorder declaration uses original slide set', sameSet(beforeDeck.ids, expected) ? `${expected.length} slide(s)` : 'declared order does not match original IDs');
-  add(equalArray(expected, afterDeck.ids) ? 'PASS' : 'FAIL', 'Reorder matches declared order', equalArray(expected, afterDeck.ids) ? expected.join(',') : `expected=${expected.join(',')} after=${afterDeck.ids.join(',')}`);
+  const sameOriginalSet = sameSet(beforeDeck.ids, expected);
+  const orderMatches = equalArray(expected, afterDeck.ids);
+  add(sameOriginalSet ? 'PASS' : 'FAIL', 'Reorder declaration uses original slide set', sameOriginalSet ? `${expected.length} slide(s)` : 'declared order does not match original IDs');
+  add(orderMatches ? 'PASS' : 'FAIL', 'Reorder matches declared order', orderMatches ? expected.join(',') : `expected=${expected.join(',')} after=${afterDeck.ids.join(',')}`);
   const changed = beforeDeck.ids.filter((id) => beforeDeck.map.get(id)?.html !== afterDeck.map.get(id)?.html);
   add(changed.length === 0 ? 'PASS' : 'FAIL', 'Reorder preserves slide contents', changed.length ? 'changed: ' + changed.join(',') : 'all slide sections byte-stable');
 }
@@ -177,7 +176,8 @@ function evaluateCompression(beforeDeck, afterDeck) {
   add(illegalRemoved.length === 0 ? 'PASS' : 'FAIL', 'Compression removes only declared slides', illegalRemoved.length ? 'undeclared removal(s): ' + illegalRemoved.join(',') : (removed.length ? 'removed: ' + removed.join(',') : 'none removed'));
 
   const survivingBeforeOrder = beforeDeck.ids.filter((id) => afterDeck.map.has(id));
-  add(equalArray(survivingBeforeOrder, afterDeck.ids) ? 'PASS' : 'FAIL', 'Compression preserves surviving slide order', equalArray(survivingBeforeOrder, afterDeck.ids) ? afterDeck.ids.join(',') : 'surviving slides were reordered');
+  const orderStable = equalArray(survivingBeforeOrder, afterDeck.ids);
+  add(orderStable ? 'PASS' : 'FAIL', 'Compression preserves surviving slide order', orderStable ? afterDeck.ids.join(',') : 'surviving slides were reordered');
   compareUntouched(beforeDeck, afterDeck, new Set([...targets, ...removable]), 'Compression edit containment');
 }
 
