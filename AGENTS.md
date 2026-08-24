@@ -46,11 +46,11 @@ docs/
   DECK_BRIEF.schema.md          Deck brief standard
   HTML_DECK_CONTRACT.md         Requirements every generated deck must satisfy
   STUDENT_DEVELOPER_PATTERNS.md Slide pattern catalog
-  VALIDATION.md                 Pass/fail checklist
+  VALIDATION.md                 Static + real-browser validation checklist
   GENERATION_HARNESS_SPEC.md    v0.2 benchmark harness contract
   EVALUATION_RUBRIC.md          First-generation quality rubric
   AGENT_WORKFLOW.md             v0.3 agent-native workflow
-  EDITABILITY_EVAL.md           Post-generation targeted-edit evaluation
+  EDITABILITY_EVAL.md           Post-generation editability policies/tools
 templates/
   base-onefile-deck.html        Reusable standalone deck skeleton
 examples/
@@ -63,6 +63,9 @@ prompts/
 tools/
   prepare-deck.mjs              Arbitrary text/Markdown source staging
   validate-deck.mjs             Structural validator
+  evaluate-edit.mjs             Before/after edit-containment evaluator
+  test-editability-eval.mjs     Positive/negative editability regressions
+  browser-qa.mjs                Installed-Chrome real runtime QA
   test-agent-workflow.mjs       v0.3 agent-workflow regression checks
   *generation*.mjs              v0.2 benchmark helpers
 eval/                           Fictional benchmark fixtures and reports
@@ -79,20 +82,36 @@ Do not add new top-level folders without a decision recorded in `PRODUCT_DECISIO
 - **Keep schema and examples in sync.** If you change `docs/DECK_BRIEF.schema.md`, update the fictional example brief and prompts that reference the fields.
 - **Record decisions.** Any scope or positioning change goes into `PRODUCT_DECISIONS.md` in the same change.
 - **Portable workflow only.** Public agent helpers may stage user-supplied text locally and assemble checked-in public resources; they may not fetch, upload, host, or call a model/provider.
+- **Mechanical gates are bounded evidence.** `evaluate-edit.mjs` proves declared structural/change containment, and `browser-qa.mjs` proves specific runtime behaviors. Neither is semantic source-fidelity or general visual-quality proof.
 
 ## Validation expectations
 
-After editing or creating any deck, run the validator on every deck you touched and confirm exit code `0`:
+After editing or creating any deck, run the static validator on every deck you touched and confirm exit code `0`:
 
 ```sh
 node tools/validate-deck.mjs <path-to-deck.html>
 ```
 
-The validator covers automatable structure. It does not replace the manual checklist.
-
-When changing the v0.3 agent workflow, also run:
+For a before/after AI edit, apply the matching policy from `docs/EDITABILITY_EVAL.md`, for example:
 
 ```sh
+node tools/evaluate-edit.mjs before.html after.html --mode targeted --targets problem
+```
+
+When a compatible installed Chrome/Chromium is available, run real browser QA:
+
+```sh
+node tools/browser-qa.mjs <path-to-deck.html>
+```
+
+When changing the agent/editability workflow or validation tooling, run the proportional regression set:
+
+```sh
+node --check tools/evaluate-edit.mjs
+node --check tools/test-editability-eval.mjs
+node --check tools/browser-qa.mjs
+node tools/test-editability-eval.mjs
+node tools/browser-qa.mjs examples/hackathon-demo/index.html
 node tools/test-agent-workflow.mjs
 node tools/test-generation-harness.mjs
 node tools/validate-deck.mjs examples/hackathon-demo/index.html
@@ -100,17 +119,17 @@ node tools/validate-deck.mjs examples/hackathon-demo/index.html
 
 Run existing benchmark aggregation only when the completed local benchmark runs are actually present. A checked-in historical PASS summary is not a fresh test run.
 
-Then perform the remaining manual checks in `docs/VALIDATION.md` when an actual browser/print path is available:
+Then perform remaining manual checks in `docs/VALIDATION.md` when applicable, especially:
 
-- TOC/nav entries match the slides,
-- page numbers match slide order,
-- print mode renders one slide per page,
-- no viewport overflow and readable font sizes,
-- no ghostwriting language or private traces appear in the diff.
+- source/brief fidelity for every changed factual claim,
+- print preview with one slide per page,
+- projector readability and composition,
+- the 1280×800 overflow viewport until it is automated,
+- no ghostwriting language or private traces in the diff.
 
-For claims about iterative AI editability, use `docs/EDITABILITY_EVAL.md`. A validator pass alone is insufficient.
+For claims about iterative AI editability, a validator PASS alone is insufficient. For claims about visual/browser quality, static inspection alone is insufficient.
 
-Report what you actually checked; never convert static inspection into a browser/visual PASS.
+Report what you actually checked; never convert a mechanical containment check, static validator, or single browser viewport into broader proof than it provides.
 
 ## What NOT to build yet
 
