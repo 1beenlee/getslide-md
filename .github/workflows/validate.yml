@@ -25,10 +25,15 @@ jobs:
       - name: Syntax check tools
         run: |
           node --check tools/prepare-deck.mjs
+          node --check tools/validate-brief.mjs
+          node --check tools/test-brief-validation.mjs
           node --check tools/test-agent-workflow.mjs
           node --check tools/evaluate-edit.mjs
           node --check tools/test-editability-eval.mjs
           node --check tools/browser-qa.mjs
+
+      - name: Test deck brief validation gate
+        run: node tools/test-brief-validation.mjs
 
       - name: Test editability evaluator
         run: node tools/test-editability-eval.mjs

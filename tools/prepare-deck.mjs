@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
 if (args.length !== 3 || args[1] !== '--out') {
@@ -54,13 +55,25 @@ const sourcePacket = [
 writeFileSync(resolve(out, 'source-to-brief-packet.md'), sourcePacket, 'utf8');
 
 if (!existsSync(briefPath)) {
-  if (existsSync(deckPacketPath)) unlinkSync(deckPacketPath);
+  removeDeckPacket();
   console.log('Prepared ' + display(out) + '. Next: create DECK_BRIEF.md from source-to-brief-packet.md, then rerun this command.');
   process.exit(0);
 }
 
 const brief = readFileSync(briefPath, 'utf8');
-if (!brief.trim()) fail('DECK_BRIEF.md exists but is empty: ' + display(briefPath));
+if (!brief.trim()) {
+  removeDeckPacket();
+  fail('DECK_BRIEF.md exists but is empty: ' + display(briefPath));
+}
+
+const briefValidator = resolve(root, 'tools', 'validate-brief.mjs');
+const validation = spawnSync(process.execPath, [briefValidator, briefPath], { encoding: 'utf8' });
+if (validation.status !== 0) {
+  removeDeckPacket();
+  const output = (validation.stdout || validation.stderr || 'brief validation failed').trim();
+  if (output) console.error(output);
+  fail('DECK_BRIEF.md failed validation. Fix the brief before preparing a generation packet.');
+}
 
 const files = [
   'prompts/brief-to-html-deck.md',
@@ -74,6 +87,10 @@ const generationResources = files
 const deckPacket = '# Brief-to-deck packet\n\n## Current brief\n\n' + brief + '\n\n' + generationResources;
 writeFileSync(deckPacketPath, deckPacket, 'utf8');
 console.log('Prepared ' + display(out) + '. Next: create index.html from brief-to-deck-packet.md, then validate it.');
+
+function removeDeckPacket() {
+  if (existsSync(deckPacketPath)) unlinkSync(deckPacketPath);
+}
 
 function display(path) {
   return (relative(process.cwd(), path) || basename(path)).replace(/\\/g, '/');

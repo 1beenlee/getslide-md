@@ -71,6 +71,14 @@ The important separation is:
 
 The agent must never turn a missing metric, user count, result, team role, feature, architecture detail, or implementation fact into an assumption merely to make the deck look complete.
 
+Before generation, validate the brief itself:
+
+```sh
+node tools/validate-brief.mjs <run-directory>/DECK_BRIEF.md
+```
+
+The validator checks the documented top-level scalar/list shape, required fields, confidence enum, optional field types, duplicate fields, and the mechanical rule that `confidence: high` cannot retain unresolved `missing_information`. It does **not** prove that `key_points` are semantically supported by the source; source/brief review remains a separate requirement.
+
 ## Source-sufficiency gate
 
 The agent uses the existing confidence field as an execution gate.
@@ -84,7 +92,7 @@ A direct end-to-end deck request may proceed without another approval turn when:
 - no unresolved factual gap is required for the proposed narrative,
 - no new risky assumption is needed.
 
-The brief still remains a saved, reviewable artifact.
+The brief still remains a saved, reviewable artifact. `validate-brief.mjs` will mechanically reject `high` confidence if `missing_information` is non-empty.
 
 ### Medium
 
@@ -104,7 +112,9 @@ After `DECK_BRIEF.md` exists, rerun the same preparation command:
 node tools/prepare-deck.mjs <source-file> --out <run-directory>
 ```
 
-The command now creates `brief-to-deck-packet.md`, which bundles:
+`prepare-deck.mjs` reruns `validate-brief.mjs` before generation. If validation fails, it removes any stale `brief-to-deck-packet.md` and stops. A malformed or mechanically inconsistent brief therefore cannot silently advance to deck generation.
+
+When the brief passes, the command creates `brief-to-deck-packet.md`, which bundles:
 
 - the current brief
 - `prompts/brief-to-html-deck.md`
@@ -137,6 +147,7 @@ Use `docs/EDITABILITY_EVAL.md` when testing post-generation changes. A structura
 Changes to the agent-native workflow should run:
 
 ```sh
+node tools/test-brief-validation.mjs
 node tools/test-agent-workflow.mjs
 node tools/test-generation-harness.mjs
 node tools/validate-deck.mjs examples/hackathon-demo/index.html
