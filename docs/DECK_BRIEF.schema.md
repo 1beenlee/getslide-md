@@ -14,6 +14,16 @@ A deck brief exists so that:
 
 A `DECK_BRIEF.md` file is a Markdown file whose content is a single YAML frontmatter block, optionally followed by free-form Markdown notes. The YAML block is the machine-readable part; the notes are for humans.
 
+The public workflow intentionally uses a small YAML subset: top-level scalar fields and indented dash lists. Avoid nested mappings, block scalars, anchors, aliases, or other advanced YAML features. This keeps the brief portable and allows zero-dependency validation.
+
+Run the executable structural gate before generation:
+
+```sh
+node tools/validate-brief.mjs <DECK_BRIEF.md>
+```
+
+`tools/prepare-deck.mjs` runs the same gate automatically and refuses to create `brief-to-deck-packet.md` when the brief is invalid. This validates shape and the mechanical confidence/gap invariant; it does **not** prove that a claim is actually supported by the source.
+
 ## Fields
 
 ### Required fields
@@ -48,6 +58,8 @@ A `DECK_BRIEF.md` file is a Markdown file whose content is a single YAML frontma
 | `high` | Sources cover the goal, audience, and all key points. Few or no assumptions. | Generate directly. |
 | `medium` | Sources cover the core story, but some slides depend on assumptions or have gaps. | Review `missing_information` and `auto_filled_assumptions` before generating. |
 | `low` | Sources are thin or ambiguous; major content had to be assumed. | Add material or answer the missing-information items first. |
+
+The executable validator enforces one mechanical invariant from this table: a brief cannot claim `confidence: high` while `missing_information` still contains unresolved items.
 
 ## Rules for `missing_information` and `auto_filled_assumptions`
 
