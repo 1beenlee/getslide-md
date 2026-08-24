@@ -136,8 +136,11 @@ try {
   finish();
 } finally {
   if (cdp) cdp.close();
-  if (browser && !browser.killed) browser.kill('SIGKILL');
-  rmSync(profile, { recursive: true, force: true });
+  if (browser && browser.exitCode === null) {
+    browser.kill('SIGKILL');
+    await waitForProcessExit(browser, 2000);
+  }
+  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
 function findBrowser() {
@@ -356,6 +359,21 @@ function waitUntil(check, timeoutMs, name) {
       }
     };
     poll();
+  });
+}
+
+function waitForProcessExit(child, timeoutMs) {
+  if (child.exitCode !== null) return Promise.resolve();
+  return new Promise((resolvePromise) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolvePromise();
+    };
+    const timeout = setTimeout(done, timeoutMs);
+    child.once('exit', done);
   });
 }
 
