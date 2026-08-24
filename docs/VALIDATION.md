@@ -45,7 +45,7 @@ The contract these checks enforce is defined in [HTML_DECK_CONTRACT.md](HTML_DEC
 | D2 | Basic accessibility | One `h1` (title slide), one `h2` per other slide; text/background contrast is comfortably readable on screen and in print; images (if any) have `alt` text. |
 | D3 | No viewport overflow | At 1280×800 and 1440×900 at default zoom, no slide's content is cut off or forces horizontal scrolling. |
 
-## Automated checks (validator script)
+## Automated checks — static validator
 
 A zero-dependency Node.js validator, [`tools/validate-deck.mjs`](../tools/validate-deck.mjs), automates the structural subset of the manual checks above. It uses only Node built-in modules — no dependencies, no build step.
 
@@ -74,4 +74,49 @@ It exits `0` on pass and `1` on any failure, printing a per-check `[PASS]`/`[FAI
 
 **Modes.** The validator auto-detects templates (path under `templates/` or basename `base-onefile-deck.html`) and downgrades placeholder findings to warnings, since templates intentionally ship `Replace with ...` placeholders. Force with `--template`, or force example rules with `--strict`.
 
-**Still manual.** The validator is a first pass, not a replacement for the checklist. It checks static evidence only and cannot prove runtime navigation, hash transitions, scrolling behavior, visual active-state synchronization, or print output. Checks A3, B1, B4–B7, C2 (one-page-per-slide), C3, D1–D3, and browser/print behavior still require human judgment or a browser. HTML well-formedness, internal-anchor resolution, single-file policy, and heading structure are candidates for a future version.
+## Automated checks — real browser QA
+
+`tools/browser-qa.mjs` closes part of the gap between static signals and actual runtime behavior. It launches an **already installed Chrome/Chromium** in headless mode from the local `file://` deck and uses the DevTools protocol directly through Node built-ins.
+
+```sh
+node tools/browser-qa.mjs examples/hackathon-demo/index.html
+```
+
+If the executable is not auto-discovered, set `GETSLIDE_BROWSER` to the Chrome/Chromium executable path. The script does not install, download, or call a hosted browser.
+
+It currently exercises:
+
+| Browser-QA check | Maps to |
+|---|---|
+| Deck loads from `file://` in real Chrome/Chromium | B1, C3 (runtime evidence) |
+| Generated TOC count and hash targets match slides | B4, B5, C1a |
+| Generated `current / total` numbers match order | B6, C1a |
+| Document/body/main/slides do not overflow horizontally at 1440×900 | D3 (one required viewport) |
+| Each slide fits within one 1440×900 viewport vertically | D3 (one required viewport) |
+| Initial active slide is synchronized | C1a |
+| TOC click works | B5, C1a |
+| ArrowRight/ArrowLeft, PageDown/PageUp, Home/End, Space work | C1, C1b |
+| Direct hash navigation updates the active slide | C1a |
+
+A browser-QA PASS is stronger than static inspection for those specific checks, but it still does **not** prove the second required 1280×800 viewport, projector readability, visual composition, typing-field guard behavior, or print quality. Those remain manual unless a later task adds a real executable check for them.
+
+## Edit containment after AI changes
+
+When validating a before/after AI edit, also use [`tools/evaluate-edit.mjs`](../tools/evaluate-edit.mjs) and the policies in [`EDITABILITY_EVAL.md`](EDITABILITY_EVAL.md). The evaluator can prove declared structural/change containment and invoke the static validator; it cannot prove semantic factual/source fidelity.
+
+## What remains manual
+
+Automation is a set of evidence gates, not a replacement for the checklist. Human or model review still owns:
+
+- A3 ghostwriting/positioning judgment,
+- A4 whether non-demo numbers are actually supported,
+- B1 full HTML correctness beyond successful tested-browser load,
+- B7 arbitrary internal anchors outside the generated TOC,
+- C1 typing-target behavior unless explicitly runtime-tested,
+- C2 one-page-per-slide print preview and print colors,
+- D1 projector readability,
+- D2 accessibility/contrast judgment,
+- D3 the 1280×800 viewport and any touched slide visual-composition judgment,
+- semantic source fidelity for generated or edited factual claims.
+
+Do not convert a static-validator PASS, edit-containment PASS, or browser-runtime PASS into a claim that these separate manual dimensions were verified.
