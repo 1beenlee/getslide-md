@@ -37,7 +37,7 @@ try {
   browser = launched.process;
   add('PASS', 'Headless browser launched', launched.browserWsUrl);
 
-  cdp = await CdpClient.connect(launched.browserWsUrl);
+  cdp = await connectCdp(launched.browserWsUrl);
   const pageTarget = await findPageTarget(cdp, target);
   const attached = await cdp.send('Target.attachToTarget', { targetId: pageTarget.targetId, flatten: true });
   pageSessionId = attached.sessionId;
@@ -209,6 +209,68 @@ function launchBrowser(executable, url, userDataDir) {
   });
 }
 
+function connectCdp(url) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const ws = new WebSocket(url);
+    const pending = new Map();
+    let nextId = 1;
+    let settled = false;
+
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      rejectPromise(new Error('Timed out connecting to browser DevTools websocket'));
+    }, 5000);
+
+    ws.addEventListener('message', async (event) => {
+      let text;
+      if (typeof event.data === 'string') text = event.data;
+      else if (event.data instanceof ArrayBuffer) text = Buffer.from(event.data).toString('utf8');
+      else if (event.data && typeof event.data.text === 'function') text = await event.data.text();
+      else text = String(event.data);
+      const message = JSON.parse(text);
+      if (!message.id) return;
+      const item = pending.get(message.id);
+      if (!item) return;
+      pending.delete(message.id);
+      if (message.error) item.reject(new Error(`${message.error.code}: ${message.error.message}`));
+      else item.resolve(message.result || {});
+    });
+
+    ws.addEventListener('close', () => {
+      for (const item of pending.values()) item.reject(new Error('CDP websocket closed'));
+      pending.clear();
+    });
+
+    ws.addEventListener('open', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolvePromise({
+        send(method, params = {}, sessionId = null) {
+          const id = nextId++;
+          return new Promise((resolveSend, rejectSend) => {
+            pending.set(id, { resolve: resolveSend, reject: rejectSend });
+            const message = { id, method, params };
+            if (sessionId) message.sessionId = sessionId;
+            ws.send(JSON.stringify(message));
+          });
+        },
+        close() {
+          try { ws.close(); } catch {}
+        }
+      });
+    }, { once: true });
+
+    ws.addEventListener('error', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      rejectPromise(new Error('Failed to connect to browser DevTools websocket'));
+    }, { once: true });
+  });
+}
+
 async function findPageTarget(client, targetPath) {
   const expected = pathToFileURL(targetPath).href.split('#')[0];
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -289,70 +351,4 @@ function finish() {
   console.log('');
   console.log(failures.length ? `RESULT: FAIL (${failures.length} failure(s))` : 'RESULT: PASS');
   if (failures.length) process.exitCode = 1;
-}
-
-class CdpClient {
-  constructor(ws) {
-    this.ws = ws;
-    this.nextId = 1;
-    this.pending = new Map();
-    ws.addEventListener('message', (event) => this.onMessage(event.data));
-    ws.addEventListener('close', () => {
-      for (const pending of this.pending.values()) pending.reject(new Error('CDP websocket closed'));
-      this.pending.clear();
-    });
-  }
-
-  static connect(url) {
-    return new Promise((resolvePromise, rejectPromise) => {
-      const ws = new WebSocket(url);
-      let settled = false;
-      const timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        rejectPromise(new Error('Timed out connecting to browser DevTools websocket'));
-      }, 5000);
-      ws.addEventListener('open', () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolvePromise(new CdpClient(ws));
-      }, { once: true });
-      ws.addEventListener('error', () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        rejectPromise(new Error('Failed to connect to browser DevTools websocket'));
-      }, { once: true });
-    });
-  }
-
-  send(method, params = {}, sessionId = null) {
-    const id = this.nextId++;
-    return new Promise((resolvePromise, rejectPromise) => {
-      this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise });
-      const message = { id, method, params };
-      if (sessionId) message.sessionId = sessionId;
-      this.ws.send(JSON.stringify(message));
-    });
-  }
-
-  async onMessage(data) {
-    let text;
-    if (typeof data === 'string') text = data;
-    else if (data instanceof ArrayBuffer) text = Buffer.from(data).toString('utf8');
-    else if (data && typeof data.text === 'function') text = await data.text();
-    else text = String(data);
-    const message = JSON.parse(text);
-    if (!message.id) return;
-    const pending = this.pending.get(message.id);
-    if (!pending) return;
-    this.pending.delete(message.id);
-    if (message.error) pending.reject(new Error(`${message.error.code}: ${message.error.message}`));
-    else pending.resolve(message.result || {});
-  }
-
-  close() {
-    try { this.ws.close(); } catch {}
-  }
 }
