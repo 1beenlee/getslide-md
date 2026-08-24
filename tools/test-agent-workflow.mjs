@@ -66,6 +66,14 @@ try {
   }
   console.log('PASS: cross-client getslide skill contract is present and synchronized');
 
+  const sourcePrompt = readFileSync(join(root, 'prompts', 'source-to-deck-brief.md'), 'utf8');
+  assertIncludes(sourcePrompt, /Do NOT put every URL from the source into required_links/i, 'source-to-brief prompt may still promote every source URL into the deck');
+  assertIncludes(sourcePrompt, /image reference.*NOT evidence.*image asset is available/is, 'source-to-brief prompt does not distinguish image references from supplied image assets');
+  assertIncludes(sourcePrompt, /sunset, archived, deprecated, historical, experimental/i, 'source-to-brief prompt does not preserve material project lifecycle caveats');
+  assertIncludes(sourcePrompt, /quantitative qualifiers such as "about".*"under".*"up to"/is, 'source-to-brief prompt does not preserve quantitative qualifiers');
+  assert(!/Include all supported links in required_links/i.test(sourcePrompt), 'source-to-brief prompt still contains the old all-links rule');
+  console.log('PASS: real-source intake contract protects link relevance, image availability, lifecycle caveats, and quantitative qualifiers');
+
   const sourcePath = join(run, 'input.md');
   const outputPath = join(run, 'output');
   const originalSource = '# Demo project\n\nA source-grounded project README with a clearly supported project statement.\n';
@@ -80,6 +88,10 @@ try {
 
   const stagedSource = readFileSync(join(outputPath, 'source.md'), 'utf8');
   assert(stagedSource === originalSource, 'prepare-deck changed source wording during staging');
+
+  const sourcePacket = readFileSync(join(outputPath, 'source-to-brief-packet.md'), 'utf8');
+  assertIncludes(sourcePacket, /Do NOT put every URL from the source into required_links/i, 'staged source-to-brief packet omitted the presentation-link selection rule');
+  assertIncludes(sourcePacket, /image reference.*NOT evidence.*image asset is available/is, 'staged source-to-brief packet omitted image-availability protection');
 
   writeFileSync(join(outputPath, 'DECK_BRIEF.md'), [
     '---',

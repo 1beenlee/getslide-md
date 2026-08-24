@@ -36,6 +36,7 @@ Last updated: 2026-08-25
 | Real browser QA | v0.3.1 adds `tools/browser-qa.mjs`, which uses an already installed Chrome/Chromium through the DevTools protocol and Node built-ins to check actual `file://` runtime navigation, TOC/hash/page-number synchronization, and geometric overflow. No Puppeteer/Playwright or browser download is added. |
 | Executable brief gate | v0.3.2 validates the documented `DECK_BRIEF.md` top-level scalar/list subset before generation. Required fields, confidence, optional field shapes, duplicate/malformed syntax, and the mechanical `high`-confidence/no-unresolved-gap invariant are checked; invalid briefs cannot produce a generation packet. This is structural evidence, **not semantic source-fidelity proof**. |
 | Browser QA depth | v0.3.3 makes both required geometric-fit viewports (**1440×900 and 1280×800**) executable and runtime-tests the focused-input typing guard for all presentation keys. Browser sandboxing and dead-proxy page-network isolation remain enabled. This proves specified runtime/geometric behavior, **not projector aesthetics or print/PDF quality**. |
+| Real-source intake | v0.3.4 hardens README-to-brief compression based on public-project trials: `required_links` selects presentation-essential URLs rather than every source URL; Markdown image references are not treated as supplied assets; material lifecycle/status caveats and quantitative qualifiers must survive compression. No third-party trial artifact is committed. |
 
 ## Deferred
 
@@ -90,4 +91,4 @@ A future hosted wrapper should sell convenience and operational quality, not acc
 5. Does `DECK_BRIEF.md` need an explicit schema-version field before external tools start producing briefs?
 6. How much of the pattern catalog should remain public as it grows: all of it or a stable public core plus specialized packs?
 7. If agent-native usage is strong but setup friction blocks non-agent users, what is the thinnest hosted wrapper that removes that friction without becoming a generic slide SaaS?
-8. With deterministic brief, edit-containment, and required browser-runtime gates now covered, should the next investment prioritize **real-world Agent trials**, **semantic source-review assistance**, or **print/export evidence**?
+8. After real-source intake hardening, the next evidence step is full **real-world Agent trials**; only their observed failures should decide whether semantic source-review assistance or print/export evidence comes next.

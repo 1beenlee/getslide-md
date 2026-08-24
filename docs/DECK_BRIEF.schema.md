@@ -35,7 +35,7 @@ node tools/validate-brief.mjs <DECK_BRIEF.md>
 | `presentation_context` | string | The setting: event name/type, format, stakes. |
 | `presentation_goal` | string | What the presenter wants the audience to think or do afterward. |
 | `core_message` | string | The one sentence the audience must remember. |
-| `key_points` | list | The claims/facts the deck will present. Each point must be supported by the source materials. |
+| `key_points` | list | The claims/facts the deck will present. Each point must be supported by the source materials and preserve material lifecycle/status or quantitative qualifiers. |
 | `source_materials` | list | What the brief was built from (e.g. "project README", "architecture notes"). Reference names/descriptions, not private file contents. |
 | `confidence` | `high` \| `medium` \| `low` | How well the source materials support a complete deck (see below). |
 
@@ -45,11 +45,18 @@ node tools/validate-brief.mjs <DECK_BRIEF.md>
 |---|---|---|
 | `time_limit_minutes` | number or `unknown` | Presentation time limit. Drives slide count. |
 | `slide_count_target` | number or `unknown` | Desired slide count. Rule of thumb: ~1 slide per 30–45 seconds. |
-| `required_links` | list | Links that must appear in the deck (repo, demo, contact). |
-| `required_images` | list | Images/screenshots the author will supply, with intended placement. |
-| `missing_information` | list | Information the deck needs but the sources don't provide. |
+| `required_links` | list | Presentation-essential links that must appear visibly in the deck, such as the project/repository, live demo, portfolio, or contact. This is not a dump of every URL in the source. |
+| `required_images` | list | Images/screenshots that are actually supplied/available to the generation workflow, with intended placement. A Markdown image reference alone does not mean the asset is available. |
+| `missing_information` | list | Information or presentation-critical assets the deck needs but the supplied sources don't provide. |
 | `auto_filled_assumptions` | list | Assumptions made to fill gaps. Each must be visible to the user before generation. |
 | `recommended_direction` | string | Suggested theme/style: `developer-demo`, `clean-academic`, `portfolio-case-study`, or `other`. |
+
+### Link and image availability rules
+
+- `required_links` is for **presentation requirements**, not source inventory. Setup/install URLs, dependency docs, developer portals, issue trackers, and contribution/reference links stay out unless the presentation goal explicitly needs them.
+- In the text/Markdown-only workflow, an inline Markdown or HTML image reference is only text pointing at an asset. It does not make that image available to a standalone offline deck.
+- Put an image in `required_images` only when the actual asset is separately available to the generation workflow.
+- If a referenced screenshot/diagram is important but unavailable, record the missing asset in `missing_information`; do not hotlink or invent a replacement.
 
 ## Confidence levels
 
@@ -64,8 +71,9 @@ The executable validator enforces one mechanical invariant from this table: a br
 ## Rules for `missing_information` and `auto_filled_assumptions`
 
 - Anything the deck states that is **not in the source materials** must appear in `auto_filled_assumptions`.
-- Anything the deck **should** state but cannot must appear in `missing_information`.
+- Anything the deck **should** state but cannot, including a presentation-critical referenced image that was not actually supplied, must appear in `missing_information`.
 - Assumptions never include invented metrics, users, or results. A gap in results data is `missing_information`, not a number to make up.
+- Preserve material caveats in source-supported claims. Do not turn `about 1K`, `under 50ms`, `experimental`, `sunset`, `archived`, or similar wording into stronger/exact/current claims.
 - Resolving a `missing_information` item moves it into `key_points`; accepting an assumption keeps it listed so the author knows it is theirs to verify.
 
 ## Recommended direction
