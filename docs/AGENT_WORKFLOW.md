@@ -28,6 +28,8 @@ The public agent workflow accepts one UTF-8 text or Markdown source at a time:
 
 PDF, image, URL, repository URL, private connector, and other ingestion paths remain outside the public v0.3 workflow. The skill must not pretend those inputs were parsed when they were not.
 
+A Markdown source can mention URLs and image paths without making those resources available as inputs. Treat the source text itself as the evidence boundary: do not fetch a referenced URL/image and do not imply a relative image path is an available deck asset.
+
 ## Files produced in a run
 
 A normal task-owned run directory becomes:
@@ -66,10 +68,21 @@ The agent creates `DECK_BRIEF.md` before any deck HTML. The brief is the evidenc
 The important separation is:
 
 - `key_points`: source-supported claims that the deck may state
-- `missing_information`: useful or required facts the source does not provide
+- `missing_information`: useful/required facts or presentation-critical assets the supplied source does not actually provide
 - `auto_filled_assumptions`: visible low-risk framing defaults, never invented evidence
+- `required_links`: only links that should actually be visible in the presentation, not every URL found in the source
+- `required_images`: only image assets actually supplied/available to the generation workflow
 
-The agent must never turn a missing metric, user count, result, team role, feature, architecture detail, or implementation fact into an assumption merely to make the deck look complete.
+The agent must never turn a missing metric, user count, result, team role, feature, architecture detail, implementation fact, or unavailable image into an assumption merely to make the deck look complete.
+
+### Real README compression rules
+
+Real project READMEs are usually written for installation/contribution/reference, not as presentation scripts. When compressing them into a brief:
+
+- keep only presentation-essential project/repository/demo/contact URLs in `required_links`; do not promote setup/install, dependency docs, developer portals, issue pages, or contribution links into deck requirements unless the presentation goal needs them,
+- treat Markdown/HTML image references as unavailable unless the actual image asset was separately supplied; if an unavailable screenshot/diagram is important to the story, put that gap in `missing_information`,
+- preserve material lifecycle caveats such as sunset, archived, deprecated, historical, experimental, or no-longer-maintained status,
+- preserve quantitative qualifiers from the source such as `about`, `approximately`, `under`, or `up to`; do not strengthen an estimate into an exact value or a source claim into an independently verified guarantee.
 
 Before generation, validate the brief itself:
 
@@ -89,7 +102,7 @@ A direct end-to-end deck request may proceed without another approval turn when:
 
 - the core story and audience/context are supported,
 - required deck claims are all source-grounded,
-- no unresolved factual gap is required for the proposed narrative,
+- no unresolved factual or required-asset gap is needed for the proposed narrative,
 - no new risky assumption is needed.
 
 The brief still remains a saved, reviewable artifact. `validate-brief.mjs` will mechanically reject `high` confidence if `missing_information` is non-empty.
