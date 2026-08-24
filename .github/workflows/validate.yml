@@ -17,13 +17,24 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v5
 
-      - name: Show Node version
-        run: node --version
+      - name: Show Node and browser versions
+        run: |
+          node --version
+          google-chrome --version || google-chrome-stable --version || chromium --version || chromium-browser --version
 
-      - name: Syntax check v0.3 tools
+      - name: Syntax check tools
         run: |
           node --check tools/prepare-deck.mjs
           node --check tools/test-agent-workflow.mjs
+          node --check tools/evaluate-edit.mjs
+          node --check tools/test-editability-eval.mjs
+          node --check tools/browser-qa.mjs
+
+      - name: Test editability evaluator
+        run: node tools/test-editability-eval.mjs
+
+      - name: Run real browser QA
+        run: node tools/browser-qa.mjs examples/hackathon-demo/index.html
 
       - name: Test agent-native workflow
         run: node tools/test-agent-workflow.mjs

@@ -2,7 +2,7 @@
 
 A getslide deck is not proven useful merely because the first generation passes the HTML validator. The product thesis also depends on **safe iterative editing**: an agent should be able to change the requested part of the deck without corrupting unrelated content, source grounding, navigation, or layout conventions.
 
-This document defines the v0.3 post-generation editability probes. It is an evaluation specification, not a model API or hosted test runner.
+This document defines the post-generation editability probes and the v0.3.1 executable containment gates. The tooling is provider-neutral and uses no model API.
 
 ## Evaluation unit
 
@@ -77,6 +77,8 @@ Check:
 - the edit is localized to the best-fit slide unless a second change is necessary for narrative consistency,
 - required links remain visible and correct.
 
+Mechanically, E3 normally uses the same `targeted` containment mode as E1. The evaluator can prove containment; it cannot prove that the new evidence is true or faithfully interpreted.
+
 ## Probe E4 — Reorder slides
 
 Example instruction:
@@ -114,46 +116,110 @@ Apply E1 followed by E3 to the same deck. This checks whether the second edit pr
 
 Use this only after the independent probes pass; cumulative editing introduces more variables and should not obscure a basic single-edit failure.
 
-## Automated checks after each probe
+## Executable containment evaluator
 
-Run:
+`tools/evaluate-edit.mjs` compares a frozen before deck with an edited after deck. It always runs the existing deck validator on the after deck and blocks `:root` design-token drift, script/navigation drift, and non-slide system-shell drift.
+
+### Targeted edit / E1 or E3
 
 ```sh
-node tools/validate-deck.mjs <edited-deck.html>
+node tools/evaluate-edit.mjs before.html after.html \
+  --mode targeted \
+  --targets problem
 ```
 
-Record the exit code and validator output. If the validator fails, the probe fails until a constrained repair restores compliance.
+The slide set/order must be unchanged. Only declared target slide sections may change.
 
-Where a diff is available, inspect it for:
+### Slide split / E2
 
-- unexpected changes outside targeted slide sections,
-- changes to `:root` design tokens without explicit need,
-- changes to the canonical navigation script,
-- removed required links,
-- leaked prompt or local-path text.
+```sh
+node tools/evaluate-edit.mjs before.html after.html \
+  --mode split \
+  --replace architecture:architecture-overview,architecture-details
+```
+
+The declared original slide must be replaced in place by exactly the declared new IDs; unrelated slides must stay byte-stable.
+
+### Reorder / E4
+
+```sh
+node tools/evaluate-edit.mjs before.html after.html \
+  --mode reorder \
+  --order title,problem,demo-flow,architecture,closing
+```
+
+The after deck must use exactly the original slide set in the declared order. Slide-section contents must remain byte-stable.
+
+### Compression / E5
+
+```sh
+node tools/evaluate-edit.mjs before.html after.html \
+  --mode compression \
+  --targets problem,solution \
+  --allow-remove technical-details
+```
+
+No slide additions or reordering are allowed. Surviving non-target slides must remain byte-stable, and only explicitly declared slides may be removed.
+
+### What the evaluator does not prove
+
+A mechanical PASS does **not** mean the edited text is factually correct, source-supported, persuasive, or visually good. It proves only that the declared structural/edit scope was respected and that the after deck still passes the static deck validator. Source/brief review remains mandatory for semantic claims.
+
+## Regression suite
+
+Run the checked-in positive/negative mutation suite:
+
+```sh
+node tools/test-editability-eval.mjs
+```
+
+The suite copies the fictional public example into a temporary directory and verifies both accepted changes and blocked failure modes, including undeclared slide edits, design-token drift, navigation-script drift, undeclared removals, and content rewrites during reorder.
+
+## Real browser quality gate
+
+`tools/browser-qa.mjs` launches an **actually installed Chrome/Chromium** in headless mode and uses the DevTools protocol directly through Node built-ins. It does not install or download a browser.
+
+```sh
+node tools/browser-qa.mjs <deck.html>
+```
+
+Set `GETSLIDE_BROWSER` to an executable path if auto-discovery cannot find Chrome/Chromium.
+
+The browser gate currently verifies:
+
+- generated TOC count and hash targets,
+- generated `current / total` page numbers,
+- no horizontal document/body/main/slide overflow at the test viewport,
+- no slide taller than one test viewport,
+- initial active-slide synchronization,
+- TOC click navigation,
+- ArrowRight/ArrowLeft, PageDown/PageUp, Home/End, and Space navigation,
+- direct hash navigation.
+
+This is real runtime evidence, not static inspection. It still does not replace human review for projector readability, composition quality, print preview, or factual/source fidelity.
 
 ## Manual/browser checks
 
-When a real browser path is available, inspect:
+For a real edited deck, also inspect what automation does not establish:
 
-- viewport overflow on every touched/new slide,
-- projector-readable type size and density,
-- keyboard navigation across the changed slide boundary,
-- TOC active-state behavior,
-- direct hash loading for new/moved slides,
-- print preview with one slide per page.
+- projector-readable type size and information density,
+- visual hierarchy and composition on every touched/new slide,
+- print preview with one slide per page,
+- source/brief fidelity of every changed factual claim.
 
-If a browser is unavailable, record these as **not freshly verified**. Do not convert static HTML inspection into a visual PASS claim.
+If an executable browser is unavailable, record browser checks as **not freshly verified**. Do not convert static HTML inspection into a visual PASS claim.
 
 ## Passing the editability milestone
 
-A deck passes the v0.3 editability milestone when:
+A deck passes the editability milestone when:
 
 - E1–E5 each finish with validator exit `0`,
+- applicable `evaluate-edit.mjs` containment checks pass,
 - no probe introduces an unsupported factual claim,
 - no probe rewrites the canonical navigation system without being asked,
 - no critical dimension scores below `3`,
 - average manual/model score across the six dimensions is at least `3.0`,
-- browser-only items are either actually verified or explicitly left open rather than falsely marked PASS.
+- browser/runtime behavior is actually verified where claimed,
+- remaining visual/print/semantic items are either reviewed or explicitly left open rather than falsely marked PASS.
 
 The purpose is not to optimize for a particular model. It is to test whether getslide's artifact contract makes **small, trustworthy, repeatable AI edits** practical across compatible agents.
