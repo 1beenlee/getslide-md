@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
-import http from 'node:http';
 
 const targetArg = process.argv.slice(2).find((arg) => !arg.startsWith('--'));
 if (!targetArg) {
@@ -28,6 +27,7 @@ const add = (status, name, detail = '') => results.push({ status, name, detail }
 const profile = mkdtempSync(join(tmpdir(), 'getslide-browser-qa-'));
 let browser = null;
 let cdp = null;
+let pageSessionId = null;
 
 try {
   const executable = findBrowser();
@@ -37,11 +37,15 @@ try {
   browser = launched.process;
   add('PASS', 'Headless browser launched', launched.browserWsUrl);
 
-  const port = Number(new URL(launched.browserWsUrl).port);
-  const page = await findPage(port, target);
-  cdp = await CdpClient.connect(page.webSocketDebuggerUrl);
-  await cdp.send('Runtime.enable');
-  await cdp.send('Page.enable');
+  cdp = await CdpClient.connect(launched.browserWsUrl);
+  const pageTarget = await findPageTarget(cdp, target);
+  const attached = await cdp.send('Target.attachToTarget', { targetId: pageTarget.targetId, flatten: true });
+  pageSessionId = attached.sessionId;
+  if (!pageSessionId) throw new Error('Chrome did not return a page CDP session ID');
+  add('PASS', 'Page target attached', pageTarget.url);
+
+  await pageSend('Runtime.enable');
+  await pageSend('Page.enable');
   await waitUntil(async () => (await evaluate('document.readyState')) === 'complete', 5000, 'page load');
   await waitUntil(async () => (await evaluate("document.querySelectorAll('main .slide').length")) > 0, 5000, 'slide initialization');
   await sleep(150);
@@ -61,16 +65,13 @@ try {
       slideIds: slides.map((slide) => slide.id),
       slideBoxes: slides.map((slide) => ({
         id: slide.id,
-        width: slide.getBoundingClientRect().width,
         height: slide.getBoundingClientRect().height,
         clientWidth: slide.clientWidth,
         scrollWidth: slide.scrollWidth
       })),
       tocHrefs: links.map((link) => link.getAttribute('href')),
-      tocText: links.map((link) => link.textContent.trim()),
       pageNumbers: nums.map((num) => num.textContent.trim()),
-      activeIds: slides.filter((slide) => slide.classList.contains('active')).map((slide) => slide.id),
-      hash: location.hash
+      activeIds: slides.filter((slide) => slide.classList.contains('active')).map((slide) => slide.id)
     };
   })()`);
 
@@ -80,10 +81,12 @@ try {
   add(state.pageNumbers.length === n ? 'PASS' : 'FAIL', 'Generated page-number count', `${state.pageNumbers.length}/${n}`);
 
   const expectedNums = state.slideIds.map((_, index) => `${index + 1} / ${n}`);
-  add(equalArray(expectedNums, state.pageNumbers) ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', equalArray(expectedNums, state.pageNumbers) ? expectedNums.join(', ') : state.pageNumbers.join(', '));
+  const numsMatch = equalArray(expectedNums, state.pageNumbers);
+  add(numsMatch ? 'PASS' : 'FAIL', 'Page numbers reflect current / total', numsMatch ? expectedNums.join(', ') : state.pageNumbers.join(', '));
 
   const expectedHrefs = state.slideIds.map((id) => '#' + id);
-  add(equalArray(expectedHrefs, state.tocHrefs) ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', equalArray(expectedHrefs, state.tocHrefs) ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
+  const hrefsMatch = equalArray(expectedHrefs, state.tocHrefs);
+  add(hrefsMatch ? 'PASS' : 'FAIL', 'TOC links map to slide hashes', hrefsMatch ? 'all links aligned' : `expected=${expectedHrefs.join(',')} actual=${state.tocHrefs.join(',')}`);
 
   const horizontalOverflow = state.documentScrollWidth > state.innerWidth + 1 || state.bodyScrollWidth > state.innerWidth + 1 || state.mainScrollWidth > state.mainClientWidth + 1 || state.slideBoxes.some((slide) => slide.scrollWidth > slide.clientWidth + 1);
   add(horizontalOverflow ? 'FAIL' : 'PASS', 'No horizontal viewport/body/slide overflow', horizontalOverflow ? JSON.stringify({ viewport: state.innerWidth, document: state.documentScrollWidth, body: state.bodyScrollWidth, main: [state.mainClientWidth, state.mainScrollWidth], slides: state.slideBoxes.filter((slide) => slide.scrollWidth > slide.clientWidth + 1) }) : `${state.innerWidth}px viewport`);
@@ -91,11 +94,12 @@ try {
   const tallSlides = state.slideBoxes.filter((slide) => slide.height > state.innerHeight + 1);
   add(tallSlides.length ? 'FAIL' : 'PASS', 'Every slide fits one viewport vertically', tallSlides.length ? tallSlides.map((slide) => `${slide.id}:${Math.round(slide.height)}px`).join(', ') : `${n} slide(s) <= ${state.innerHeight}px`);
 
-  add(state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0] ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
+  const initialActive = state.activeIds.length === 1 && state.activeIds[0] === state.slideIds[0];
+  add(initialActive ? 'PASS' : 'FAIL', 'Initial active slide', state.activeIds.join(',') || 'none');
 
   if (n >= 4) {
     await evaluate("document.querySelectorAll('#toc-list a')[1].click(); true");
-    await sleep(150);
+    await sleep(180);
     await expectActive('TOC click navigation', state.slideIds[1]);
 
     await key('ArrowRight');
@@ -115,7 +119,7 @@ try {
 
     const directId = state.slideIds[3];
     await evaluate(`location.hash = ${JSON.stringify('#' + directId)}; true`);
-    await sleep(180);
+    await sleep(220);
     await expectActive('Direct hash navigation', directId);
   } else {
     add('FAIL', 'Runtime navigation fixture depth', 'at least four slides are required for browser navigation QA');
@@ -170,7 +174,10 @@ function launchBrowser(executable, url, userDataDir) {
     ], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
 
     let stderr = '';
+    let settled = false;
     const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
       child.kill('SIGKILL');
       rejectPromise(new Error('Timed out waiting for Chrome DevTools endpoint. ' + stderr.slice(-500)));
     }, 10000);
@@ -179,53 +186,49 @@ function launchBrowser(executable, url, userDataDir) {
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
       const match = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);
-      if (match) {
+      if (match && !settled) {
+        settled = true;
         clearTimeout(timeout);
         resolvePromise({ process: child, browserWsUrl: match[1] });
       }
     });
     child.once('exit', (code) => {
-      if (!/DevTools listening on /.test(stderr)) {
+      if (!settled) {
+        settled = true;
         clearTimeout(timeout);
         rejectPromise(new Error(`Browser exited before DevTools became ready (code ${code}). ${stderr.slice(-500)}`));
       }
     });
     child.once('error', (error) => {
-      clearTimeout(timeout);
-      rejectPromise(error);
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        rejectPromise(error);
+      }
     });
   });
 }
 
-async function findPage(port, targetPath) {
+async function findPageTarget(client, targetPath) {
   const expected = pathToFileURL(targetPath).href.split('#')[0];
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const pages = await getJson(port, '/json/list');
-    const page = pages.find((item) => item.type === 'page' && item.url && item.url.split('#')[0] === expected) || pages.find((item) => item.type === 'page');
-    if (page?.webSocketDebuggerUrl) return page;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const response = await client.send('Target.getTargets');
+    const targets = response.targetInfos || [];
+    const exact = targets.find((item) => item.type === 'page' && item.url && item.url.split('#')[0] === expected);
+    if (exact) return exact;
+    const fallback = targets.find((item) => item.type === 'page' && item.url?.startsWith('file://'));
+    if (fallback) return fallback;
     await sleep(100);
   }
-  throw new Error('Could not find a debuggable page target for ' + basename(targetPath));
+  throw new Error('Could not find a page target for ' + basename(targetPath));
 }
 
-function getJson(port, path) {
-  return new Promise((resolvePromise, rejectPromise) => {
-    const request = http.get({ hostname: '127.0.0.1', port, path, timeout: 2000 }, (response) => {
-      let body = '';
-      response.setEncoding('utf8');
-      response.on('data', (chunk) => { body += chunk; });
-      response.on('end', () => {
-        try { resolvePromise(JSON.parse(body)); }
-        catch (error) { rejectPromise(error); }
-      });
-    });
-    request.on('error', rejectPromise);
-    request.on('timeout', () => request.destroy(new Error('DevTools HTTP timeout')));
-  });
+function pageSend(method, params = {}) {
+  return cdp.send(method, params, pageSessionId);
 }
 
 async function evaluate(expression) {
-  const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  const response = await pageSend('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
   if (response.exceptionDetails) throw new Error('Runtime.evaluate failed: ' + JSON.stringify(response.exceptionDetails));
   return response.result?.value;
 }
@@ -241,9 +244,11 @@ async function key(value) {
     ' ': ['Space', 32]
   };
   const [code, keyCode] = codes[value];
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: value, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode, text: value === ' ' ? ' ' : undefined });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: value, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
-  await sleep(180);
+  const common = { key: value, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
+  if (value === ' ') common.text = ' ';
+  await pageSend('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
+  await pageSend('Input.dispatchKeyEvent', { type: 'keyUp', ...common, text: undefined });
+  await sleep(200);
 }
 
 async function expectActive(name, id) {
@@ -301,23 +306,34 @@ class CdpClient {
   static connect(url) {
     return new Promise((resolvePromise, rejectPromise) => {
       const ws = new WebSocket(url);
-      const timeout = setTimeout(() => rejectPromise(new Error('Timed out connecting to page DevTools websocket')), 5000);
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        rejectPromise(new Error('Timed out connecting to browser DevTools websocket'));
+      }, 5000);
       ws.addEventListener('open', () => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
         resolvePromise(new CdpClient(ws));
       }, { once: true });
       ws.addEventListener('error', () => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
-        rejectPromise(new Error('Failed to connect to page DevTools websocket'));
+        rejectPromise(new Error('Failed to connect to browser DevTools websocket'));
       }, { once: true });
     });
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, sessionId = null) {
     const id = this.nextId++;
     return new Promise((resolvePromise, rejectPromise) => {
       this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise });
-      this.ws.send(JSON.stringify({ id, method, params }));
+      const message = { id, method, params };
+      if (sessionId) message.sessionId = sessionId;
+      this.ws.send(JSON.stringify(message));
     });
   }
 
