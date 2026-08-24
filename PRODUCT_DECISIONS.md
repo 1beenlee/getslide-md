@@ -2,7 +2,7 @@
 
 Current decision log for getslide.md. This file records what has been decided, what is deferred, what is explicitly out of scope for now, and what remains open. Update it whenever a decision changes.
 
-Last updated: 2026-08-20
+Last updated: 2026-08-24
 
 ## Decided
 
@@ -27,11 +27,13 @@ Last updated: 2026-08-20
 | Repo language | **English-first** for all canonical public repo content. Translated README content may exist but must not become the source of truth. |
 | License | MIT. |
 | Dependencies | None. No build step, no npm packages, no CDN assets. Decks and deterministic helper scripts use platform/browser or Node built-ins only. |
-| CI validation | A minimal GitHub Actions workflow may run the zero-dependency Node regression checks and example validator on pull requests and `main`. It performs **no deploy, publish, artifact upload, model call, or external service integration**. |
+| CI validation | GitHub Actions may run the zero-dependency Node regression checks, edit-containment tests, real installed-browser QA, and the example validator on pull requests and `main`. CI performs **no deploy, publish, artifact upload, model call, browser package installation, or external service integration**. |
 | Experimental harness | v0.2 provides a provider-neutral, file-based Markdown-to-brief-to-deck benchmark harness. It uses prompts and Node built-ins only; it is not hosted generation or automated factual verification. |
 | Generated deck navigation | v0.2.1 requires generated decks to preserve the canonical base-template navigation script. Static validation checks conservative behavior signals; runtime browser and print QA remain separate gates. |
 | Agent-native source staging | v0.3 adds `tools/prepare-deck.mjs` so one arbitrary text/Markdown source can be staged into the same brief/deck packet flow without benchmark metadata or a model/network call. |
 | Editability evaluation | v0.3 treats post-generation targeted editing as a first-class quality axis. Validator PASS is necessary but insufficient; source grounding, change containment, navigation integrity, and visual/manual QA are evaluated separately. |
+| Executable edit containment | v0.3.1 adds `tools/evaluate-edit.mjs` with explicit `targeted`, `split`, `reorder`, and `compression` policies. It invokes the deck validator and blocks undeclared slide/system changes, `:root` drift, and navigation/script drift. This is mechanical containment evidence, **not semantic factual proof**. |
+| Real browser QA | v0.3.1 adds `tools/browser-qa.mjs`, which uses an already installed Chrome/Chromium through the DevTools protocol and Node built-ins to check actual `file://` runtime navigation, TOC/hash/page-number synchronization, and one canonical viewport overflow gate. No Puppeteer/Playwright or browser download is added. |
 
 ## Deferred
 
@@ -45,6 +47,8 @@ Planned or plausible, but intentionally not in the current open-source milestone
 - Additional pattern packs beyond the student developer catalog.
 - Real-user or public-project evaluation artifacts in this public repo; real usage evidence must be collected without committing user material.
 - PPTX or Google Slides compatibility output, unless user validation shows that browser/PDF delivery is insufficient.
+- Automated semantic source-fidelity proof; factual/meaning review remains model/human review rather than a deterministic string/diff claim.
+- Full browser automation of print preview, projector readability, composition quality, and all responsive viewport sizes.
 
 ## Not now
 
@@ -84,3 +88,4 @@ A future hosted wrapper should sell convenience and operational quality, not acc
 5. Does `DECK_BRIEF.md` need an explicit schema-version field before external tools start producing briefs?
 6. How much of the pattern catalog should remain public as it grows: all of it or a stable public core plus specialized packs?
 7. If agent-native usage is strong but setup friction blocks non-agent users, what is the thinnest hosted wrapper that removes that friction without becoming a generic slide SaaS?
+8. After mechanical containment and one canonical browser viewport are reliable, which next quality gate delivers more value: semantic source-review automation, 1280×800 responsive QA, or print/PDF rendering evidence?
