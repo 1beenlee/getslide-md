@@ -82,7 +82,7 @@ It exits `0` on pass and `1` on any failure, printing a per-check `[PASS]`/`[FAI
 node tools/browser-qa.mjs examples/hackathon-demo/index.html
 ```
 
-If the executable is not auto-discovered, set `GETSLIDE_BROWSER` to the Chrome/Chromium executable path. The script does not install, download, or call a hosted browser.
+If the executable is not auto-discovered, set `GETSLIDE_BROWSER` to the Chrome/Chromium executable path. The script does not install, download, or call a hosted browser. The browser sandbox remains enabled and page network is routed through a dead local proxy during QA.
 
 It currently exercises:
 
@@ -91,14 +91,17 @@ It currently exercises:
 | Deck loads from `file://` in real Chrome/Chromium | B1, C3 (runtime evidence) |
 | Generated TOC count and hash targets match slides | B4, B5, C1a |
 | Generated `current / total` numbers match order | B6, C1a |
-| Document/body/main/slides do not overflow horizontally at 1440×900 | D3 (one required viewport) |
-| Each slide fits within one 1440×900 viewport vertically | D3 (one required viewport) |
+| Document/body/main/slides do not overflow horizontally at 1440×900 and 1280×800 | D3 (both required viewports) |
+| Each slide fits within one viewport vertically at 1440×900 and 1280×800 | D3 (both required viewports) |
 | Initial active slide is synchronized | C1a |
 | TOC click works | B5, C1a |
 | ArrowRight/ArrowLeft, PageDown/PageUp, Home/End, Space work | C1, C1b |
+| Focused input keeps all presentation keys from changing active slide/hash | C1 typing-target guard |
 | Direct hash navigation updates the active slide | C1a |
 
-A browser-QA PASS is stronger than static inspection for those specific checks, but it still does **not** prove the second required 1280×800 viewport, projector readability, visual composition, typing-field guard behavior, or print quality. Those remain manual unless a later task adds a real executable check for them.
+The typing-target check injects a temporary off-screen input into the live DOM, focuses it, dispatches all seven presentation keys, verifies slide/hash containment, then removes it. It never changes the source deck on disk.
+
+A browser-QA PASS is stronger than static inspection for those specific checks, but it still does **not** prove projector readability, visual composition, arbitrary accessibility quality, or print/PDF quality.
 
 ## Edit containment after AI changes
 
@@ -112,11 +115,10 @@ Automation is a set of evidence gates, not a replacement for the checklist. Huma
 - A4 whether non-demo numbers are actually supported,
 - B1 full HTML correctness beyond successful tested-browser load,
 - B7 arbitrary internal anchors outside the generated TOC,
-- C1 typing-target behavior unless explicitly runtime-tested,
 - C2 one-page-per-slide print preview and print colors,
 - D1 projector readability,
 - D2 accessibility/contrast judgment,
-- D3 the 1280×800 viewport and any touched slide visual-composition judgment,
+- D3 touched-slide visual-composition judgment beyond geometric fit,
 - semantic source fidelity for generated or edited factual claims.
 
 Do not convert a static-validator PASS, edit-containment PASS, or browser-runtime PASS into a claim that these separate manual dimensions were verified.
